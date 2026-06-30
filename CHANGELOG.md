@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 - 2026-06-30
+
+Expanded the package into GitHub conversation/comment operations and documented the next broader roadmap.
+
+### Added
+- `github_comment_issue`
+- `github_comment_pr`
+- `github_edit_comment`
+- `github_delete_comment`
+- shared API helpers for issue/PR conversation comments
+- dry-run coverage for new comment operations
+- roadmap issue creation for the next package phases
+
+### Improved
+- README examples now include comment lifecycle usage
+- test coverage expanded for the new comment helpers
+
 ## 0.2.0 - 2026-06-30
 
 Expanded release covering the initial roadmap issues.

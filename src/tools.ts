@@ -2,11 +2,15 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { inspectGitHubAuth } from "./auth.js";
 import {
+  createIssueComment,
   createOrGetIssue,
   createOrGetMilestone,
   createOrGetRepo,
   createOrUpdateLabels,
   createOrUpdateRelease,
+  createPullRequestComment,
+  deleteComment,
+  editComment,
   protectBranch,
   setRepoMetadata,
   shipRepo,
@@ -183,6 +187,93 @@ export function registerGitHubAdminTools(pi: ExtensionAPI): void {
       const result = await createOrGetIssue(params);
       return {
         content: [{ type: "text", text: result.dryRun ? `Dry run: would create issue ${params.title}` : `${result.created ? "Created" : "Found"} issue${result.number ? ` #${result.number}` : ""}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_comment_issue",
+    label: "GitHub Comment Issue",
+    description: "Create a comment on an existing GitHub issue.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        issueNumber: Type.Number(),
+        body: Type.String(),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await createIssueComment(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: would comment on issue #${params.issueNumber}` : `Commented on issue #${params.issueNumber}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_comment_pr",
+    label: "GitHub Comment PR",
+    description: "Create a comment on an existing GitHub pull request conversation.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        pullNumber: Type.Number(),
+        body: Type.String(),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await createPullRequestComment(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: would comment on PR #${params.pullNumber}` : `Commented on PR #${params.pullNumber}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_edit_comment",
+    label: "GitHub Edit Comment",
+    description: "Edit an existing GitHub issue or pull request comment by comment id.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        commentId: Type.Number(),
+        body: Type.String(),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await editComment(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: would edit comment ${params.commentId}` : `Edited comment ${params.commentId}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_delete_comment",
+    label: "GitHub Delete Comment",
+    description: "Delete an existing GitHub issue or pull request comment by comment id.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        commentId: Type.Number(),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await deleteComment(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: would delete comment ${params.commentId}` : `Deleted comment ${params.commentId}` }],
         details: result,
       };
     },
