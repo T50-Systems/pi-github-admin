@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `github_link_pr_issues` to add existing issue references to PR bodies with duplicate detection.
+- `github_merge_pr_when_ready` to merge PRs only after clean/check-success criteria are satisfied.
+
 ## 0.3.0 - 2026-06-30
 
 Expanded the package into GitHub conversation/comment operations and documented the next broader roadmap.

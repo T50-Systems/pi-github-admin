@@ -10,6 +10,8 @@ Pi-native GitHub admin tools for:
 - releases
 - final repo verification
 - end-to-end repo bootstrapping
+- PR-to-issue linking
+- merge-ready PR merging
 
 ## Why this package exists
 
@@ -51,6 +53,8 @@ The package resolves GitHub auth in this order:
 - `github_edit_comment`
 - `github_delete_comment`
 - `github_create_release`
+- `github_link_pr_issues`
+- `github_merge_pr_when_ready`
 - `github_verify_repo_state`
 - `github_ship_repo`
 
@@ -72,6 +76,39 @@ This package now covers the smallest high-value GitHub admin workflow end to end
 - issue and release duplicate detection normalize title/body text instead of matching only exact raw strings
 - dry-run mode is available on mutating tools
 - verification returns richer detail instead of only booleans
+- PR issue linking verifies referenced issues exist by default and avoids duplicate body entries
+- PR merging can require clean mergeability and all check runs to be successful before merging
+
+## PR discipline workflow
+
+> Use these tools before merging work so every PR has traceable issue context and merges only after checks pass.
+
+```json
+github_link_pr_issues({
+  "repo": "T50-Systems/casas-portales-inmobiliarios-rd",
+  "pullNumber": 720,
+  "issueNumbers": [548],
+  "keyword": "refs",
+  "requireExistingIssues": true
+})
+```
+
+```json
+github_merge_pr_when_ready({
+  "repo": "T50-Systems/casas-portales-inmobiliarios-rd",
+  "pullNumber": 720,
+  "method": "squash",
+  "deleteBranch": true,
+  "requireClean": true,
+  "requireChecksSuccess": true
+})
+```
+
+Criteria baked into the workflow:
+- do not create a new issue if an existing issue applies
+- link the existing issue in the PR body before merge
+- prefer `refs` for related/already-closed issues and `closes` only when this PR should close the issue
+- merge only when the PR is open, mergeable, and required checks are successful
 
 ## Example
 

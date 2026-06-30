@@ -79,6 +79,16 @@ export interface GitHubIssueInput {
   dryRun?: boolean;
 }
 
+export interface GitHubLinkPullRequestIssuesInput {
+  repo: string;
+  pullNumber: number;
+  issueNumbers: number[];
+  keyword?: "closes" | "refs";
+  sectionTitle?: string;
+  requireExistingIssues?: boolean;
+  dryRun?: boolean;
+}
+
 export interface GitHubIssueCommentInput {
   repo: string;
   issueNumber: number;
@@ -115,6 +125,16 @@ export interface GitHubReleaseInput {
   draft?: boolean;
   prerelease?: boolean;
   matchTitleOnly?: boolean;
+  dryRun?: boolean;
+}
+
+export interface GitHubMergePullRequestInput {
+  repo: string;
+  pullNumber: number;
+  method?: "merge" | "squash" | "rebase";
+  deleteBranch?: boolean;
+  requireClean?: boolean;
+  requireChecksSuccess?: boolean;
   dryRun?: boolean;
 }
 
