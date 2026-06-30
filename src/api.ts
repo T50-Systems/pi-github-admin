@@ -567,14 +567,29 @@ export function addIssueLinksToPrBody(body: string, issueNumbers: number[], keyw
 }
 
 async function getCheckRunSummary(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, sha: string) {
-  const response = (await client.request(`/repos/${ref.owner}/${ref.name}/commits/${sha}/check-runs?per_page=100`)) as {
+  const checkRunResponse = (await client.request(`/repos/${ref.owner}/${ref.name}/commits/${sha}/check-runs?per_page=100`)) as {
     check_runs?: Array<{ name: string; status: string; conclusion: string | null }>;
   };
-  const checkRuns = response.check_runs ?? [];
-  const failed = checkRuns
+  const statusResponse = (await client.request(`/repos/${ref.owner}/${ref.name}/commits/${sha}/status`)) as {
+    state?: string;
+    statuses?: Array<{ context: string; state: string }>;
+  };
+
+  const checkRuns = checkRunResponse.check_runs ?? [];
+  const statuses = statusResponse.statuses ?? [];
+  const failedChecks = checkRuns
     .filter((check) => check.status !== "completed" || !["success", "skipped", "neutral"].includes(check.conclusion ?? ""))
     .map((check) => `${check.name}:${check.status}/${check.conclusion ?? "pending"}`);
-  return { ok: failed.length === 0, total: checkRuns.length, failed };
+  const failedStatuses = statuses
+    .filter((status) => status.state !== "success")
+    .map((status) => `${status.context}:${status.state}`);
+  const failed = [
+    ...failedChecks,
+    ...(statusResponse.state && statusResponse.state !== "success" ? [`combined-status:${statusResponse.state}`] : []),
+    ...failedStatuses,
+  ];
+
+  return { ok: failed.length === 0, total: checkRuns.length + statuses.length, checkRuns: checkRuns.length, statuses: statuses.length, combinedStatus: statusResponse.state, failed };
 }
 
 async function resolveMilestoneNumber(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, title: string) {
