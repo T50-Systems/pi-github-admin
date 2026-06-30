@@ -4,6 +4,8 @@ import type {
   GitHubCreateRepoInput,
   GitHubIssueInput,
   GitHubLabelInput,
+  GitHubLinkPullRequestIssuesInput,
+  GitHubMergePullRequestInput,
   GitHubMilestoneInput,
   GitHubReleaseInput,
   GitHubRepoMetadataInput,
@@ -245,6 +247,81 @@ export async function createOrGetIssue(input: GitHubIssueInput) {
   return { created: true, number: issue.number, url: issue.html_url, dryRun: false, match: "none" };
 }
 
+export async function linkPullRequestIssues(input: GitHubLinkPullRequestIssuesInput) {
+  if (!input.issueNumbers.length) throw new Error("At least one issue number is required.");
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const pull = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`)) as {
+    number: number;
+    body?: string | null;
+    html_url: string;
+  };
+
+  if (input.requireExistingIssues ?? true) {
+    for (const issueNumber of input.issueNumbers) {
+      const issue = (await client.request(`/repos/${ref.owner}/${ref.name}/issues/${issueNumber}`)) as { pull_request?: unknown };
+      if (issue.pull_request) throw new Error(`#${issueNumber} is a pull request, not an issue.`);
+    }
+  }
+
+  const before = pull.body ?? "";
+  const after = addIssueLinksToPrBody(before, input.issueNumbers, input.keyword ?? "closes", input.sectionTitle ?? "Issue asociado");
+  if (before === after) {
+    return { updated: false, dryRun: Boolean(input.dryRun), pullNumber: pull.number, url: pull.html_url, body: before };
+  }
+  if (input.dryRun) {
+    return { updated: false, dryRun: true, pullNumber: pull.number, url: pull.html_url, body: after };
+  }
+
+  const updated = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`, "PATCH", { body: after })) as {
+    number: number;
+    body?: string | null;
+    html_url: string;
+  };
+  return { updated: true, dryRun: false, pullNumber: updated.number, url: updated.html_url, body: updated.body ?? "" };
+}
+
+export async function mergePullRequestWhenReady(input: GitHubMergePullRequestInput) {
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const pull = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`)) as {
+    number: number;
+    state: string;
+    merged: boolean;
+    mergeable_state?: string;
+    html_url: string;
+    head: { ref: string; sha: string; repo?: { full_name?: string } | null };
+  };
+
+  if (pull.state !== "open") {
+    return { merged: pull.merged, skipped: true, reason: `Pull request is ${pull.state}.`, pullNumber: pull.number, url: pull.html_url };
+  }
+  if ((input.requireClean ?? true) && pull.mergeable_state && !["clean", "unstable", "has_hooks"].includes(pull.mergeable_state)) {
+    throw new Error(`Pull request #${pull.number} is not merge-ready: ${pull.mergeable_state}.`);
+  }
+
+  const checks = input.requireChecksSuccess ?? true ? await getCheckRunSummary(client, ref, pull.head.sha) : undefined;
+  if (checks && !checks.ok) {
+    throw new Error(`Required checks are not successful for PR #${pull.number}: ${checks.failed.join(", ") || "pending checks"}.`);
+  }
+
+  if (input.dryRun) {
+    return { merged: false, dryRun: true, pullNumber: pull.number, url: pull.html_url, mergeableState: pull.mergeable_state, checks };
+  }
+
+  const result = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}/merge`, "PUT", {
+    merge_method: input.method ?? "squash",
+  })) as { merged: boolean; message: string; sha?: string };
+
+  let deletedBranch = false;
+  if (result.merged && input.deleteBranch && pull.head.repo?.full_name === `${ref.owner}/${ref.name}`) {
+    await client.request(`/repos/${ref.owner}/${ref.name}/git/refs/heads/${encodeURIComponent(pull.head.ref)}`, "DELETE");
+    deletedBranch = true;
+  }
+
+  return { merged: result.merged, dryRun: false, pullNumber: pull.number, url: pull.html_url, sha: result.sha, message: result.message, deletedBranch, checks };
+}
+
 export async function createOrUpdateRelease(input: GitHubReleaseInput) {
   const ref = parseRepo(input.repo);
   const client = await createClient();
@@ -408,6 +485,28 @@ export function findMatchingRelease<T extends { tag_name: string; name?: string;
     if (normalizeComparableText(release.name ?? "") !== normalizedTitle) return false;
     return matchTitleOnly || normalizeComparableText(release.body ?? "") === normalizedNotes;
   });
+}
+
+export function addIssueLinksToPrBody(body: string, issueNumbers: number[], keyword: "closes" | "refs", sectionTitle = "Issue asociado"): string {
+  const uniqueIssueNumbers = [...new Set(issueNumbers)];
+  const missing = uniqueIssueNumbers.filter((issueNumber) => !new RegExp(`(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\\s+#${issueNumber}\\b`, "i").test(body));
+  if (!missing.length) return body;
+
+  const normalizedKeyword = keyword === "closes" ? "Closes" : "Refs";
+  const lines = [`## ${sectionTitle}`, "", ...missing.map((issueNumber) => `${normalizedKeyword} #${issueNumber}`)];
+  const trimmed = body.trimEnd();
+  return trimmed ? `${trimmed}\n\n${lines.join("\n")}\n` : `${lines.join("\n")}\n`;
+}
+
+async function getCheckRunSummary(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, sha: string) {
+  const response = (await client.request(`/repos/${ref.owner}/${ref.name}/commits/${sha}/check-runs?per_page=100`)) as {
+    check_runs?: Array<{ name: string; status: string; conclusion: string | null }>;
+  };
+  const checkRuns = response.check_runs ?? [];
+  const failed = checkRuns
+    .filter((check) => check.status !== "completed" || !["success", "skipped", "neutral"].includes(check.conclusion ?? ""))
+    .map((check) => `${check.name}:${check.status}/${check.conclusion ?? "pending"}`);
+  return { ok: failed.length === 0, total: checkRuns.length, failed };
 }
 
 async function resolveMilestoneNumber(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, title: string) {

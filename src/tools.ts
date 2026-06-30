@@ -7,6 +7,8 @@ import {
   createOrGetRepo,
   createOrUpdateLabels,
   createOrUpdateRelease,
+  linkPullRequestIssues,
+  mergePullRequestWhenReady,
   protectBranch,
   setRepoMetadata,
   shipRepo,
@@ -183,6 +185,56 @@ export function registerGitHubAdminTools(pi: ExtensionAPI): void {
       const result = await createOrGetIssue(params);
       return {
         content: [{ type: "text", text: result.dryRun ? `Dry run: would create issue ${params.title}` : `${result.created ? "Created" : "Found"} issue${result.number ? ` #${result.number}` : ""}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_link_pr_issues",
+    label: "GitHub Link PR Issues",
+    description: "Append existing issue references to a pull request body with duplicate detection; use before merging so work remains traceable.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        pullNumber: Type.Number(),
+        issueNumbers: Type.Array(Type.Number()),
+        keyword: Type.Optional(Type.Union([Type.Literal("closes"), Type.Literal("refs")])),
+        sectionTitle: Type.Optional(Type.String()),
+        requireExistingIssues: Type.Optional(Type.Boolean()),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await linkPullRequestIssues(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: would link issues on PR #${params.pullNumber}` : `${result.updated ? "Updated" : "Already linked"} PR #${params.pullNumber}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_merge_pr_when_ready",
+    label: "GitHub Merge PR When Ready",
+    description: "Merge a pull request only after clean mergeability and successful checks criteria are satisfied; optionally delete the source branch.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        pullNumber: Type.Number(),
+        method: Type.Optional(Type.Union([Type.Literal("merge"), Type.Literal("squash"), Type.Literal("rebase")])),
+        deleteBranch: Type.Optional(Type.Boolean()),
+        requireClean: Type.Optional(Type.Boolean()),
+        requireChecksSuccess: Type.Optional(Type.Boolean()),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await mergePullRequestWhenReady(params);
+      return {
+        content: [{ type: "text", text: result.dryRun ? `Dry run: PR #${params.pullNumber} is mergeable by criteria` : result.merged ? `Merged PR #${params.pullNumber}` : `Skipped PR #${params.pullNumber}` }],
         details: result,
       };
     },
