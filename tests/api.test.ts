@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addIssueLinksToPrBody,
   createIssueComment,
   createPullRequestComment,
   deleteComment,
@@ -52,6 +53,20 @@ describe("findMatchingRelease", () => {
   it("matches normalized title and notes", () => {
     const match = findMatchingRelease([{ tag_name: "old", name: "Initial Release", body: "Some notes" }], "new", "initial   release", "some notes", false);
     expect(match).toBeTruthy();
+  });
+});
+
+describe("addIssueLinksToPrBody", () => {
+  it("appends close links in a dedicated section", () => {
+    const body = addIssueLinksToPrBody("## Summary\nDone", [720, 548], "closes");
+    expect(body).toContain("## Issue asociado");
+    expect(body).toContain("Closes #720");
+    expect(body).toContain("Closes #548");
+  });
+
+  it("does not duplicate existing issue links", () => {
+    const body = addIssueLinksToPrBody("Refs #548\n", [548], "refs");
+    expect(body).toBe("Refs #548\n");
   });
 });
 

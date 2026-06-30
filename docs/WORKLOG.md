@@ -57,3 +57,8 @@
 - verified with:
   - `npm run typecheck`
   - `npm test`
+
+### PR discipline helpers
+- added `github_link_pr_issues` so agents can attach existing issues to a PR body before merge instead of creating duplicate issues
+- added `github_merge_pr_when_ready` so merges enforce clean/check-success criteria before applying the merge
+- documented the CasasRD #720-style workflow: link existing issue, verify checks, squash merge, optionally delete branch
