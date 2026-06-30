@@ -30,13 +30,28 @@ export async function resolveGitHubAuth(): Promise<{ token: string; info: GitHub
   };
 }
 
-export async function inspectGitHubAuth(): Promise<GitHubAuthInfo> {
+export async function inspectGitHubAuth(repo?: string): Promise<GitHubAuthInfo> {
   try {
     const { info, token } = await resolveGitHubAuth();
     const scopes = await getTokenScopes(token).catch(() => []);
-    return { ...info, scopes };
-  } catch {
-    return { authenticated: false };
+    const repoAccess = repo ? await getRepoAccess(token, repo).catch(() => undefined) : undefined;
+    return {
+      ...info,
+      scopes,
+      repoAccess,
+      message: info.login ? `Authenticated as ${info.login}.` : "Authenticated with GitHub.",
+      suggestions: scopes.length === 0 ? ["If operations fail, verify the token has repo access."] : undefined,
+    };
+  } catch (error) {
+    return {
+      authenticated: false,
+      message: error instanceof Error ? error.message : "GitHub auth unavailable.",
+      suggestions: [
+        "Set GITHUB_TOKEN or GH_TOKEN.",
+        "Or run: gh auth login",
+        "Then retry github_get_auth.",
+      ],
+    };
   }
 }
 
@@ -71,6 +86,32 @@ async function getTokenScopes(token: string): Promise<string[]> {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+async function getRepoAccess(token: string, repo: string): Promise<NonNullable<GitHubAuthInfo["repoAccess"]>> {
+  const response = await fetch(`https://api.github.com/repos/${repo}`, {
+    headers: buildHeaders(token),
+  });
+  if (response.status === 404) {
+    return { repo, exists: false };
+  }
+  if (!response.ok) {
+    throw new Error(`Unable to inspect repo access for ${repo} (${response.status}).`);
+  }
+  const data = (await response.json()) as {
+    permissions?: {
+      admin?: boolean;
+      maintain?: boolean;
+      push?: boolean;
+      triage?: boolean;
+      pull?: boolean;
+    };
+  };
+  return {
+    repo,
+    exists: true,
+    permissions: data.permissions,
+  };
 }
 
 function buildHeaders(token: string): HeadersInit {

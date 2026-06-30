@@ -1,12 +1,14 @@
 import { resolveGitHubAuth } from "./auth.js";
 import type {
   GitHubBranchProtectionInput,
+  GitHubCreateRepoInput,
   GitHubIssueInput,
   GitHubLabelInput,
   GitHubMilestoneInput,
   GitHubReleaseInput,
   GitHubRepoMetadataInput,
   GitHubRepoRef,
+  GitHubShipRepoInput,
   GitHubVerifyInput,
 } from "./types.js";
 
@@ -16,8 +18,72 @@ export function parseRepo(repo: string): GitHubRepoRef {
   return { owner, name };
 }
 
+export function normalizeComparableText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export async function createOrGetRepo(input: GitHubCreateRepoInput) {
+  const client = await createClient();
+  const repoPath = `/repos/${input.owner}/${input.name}`;
+  try {
+    const existing = await client.request(repoPath);
+    return {
+      created: false,
+      existed: true,
+      dryRun: false,
+      fullName: existing.full_name,
+      url: existing.html_url,
+    };
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+
+  if (input.dryRun) {
+    return {
+      created: false,
+      existed: false,
+      dryRun: true,
+      fullName: `${input.owner}/${input.name}`,
+      url: `https://github.com/${input.owner}/${input.name}`,
+      operation: "create_repo",
+    };
+  }
+
+  const viewer = await client.request(`/user`);
+  const createPath = viewer?.login === input.owner ? `/user/repos` : `/orgs/${input.owner}/repos`;
+  const created = await client.request(createPath, "POST", {
+    name: input.name,
+    description: input.description,
+    homepage: input.homepage,
+    private: (input.visibility ?? "private") !== "public",
+    auto_init: Boolean(input.initialize),
+  });
+  return {
+    created: true,
+    existed: false,
+    dryRun: false,
+    fullName: created.full_name,
+    url: created.html_url,
+  };
+}
+
 export async function setRepoMetadata(input: GitHubRepoMetadataInput) {
   const ref = parseRepo(input.repo);
+  if (input.dryRun) {
+    return {
+      updated: false,
+      verified: false,
+      dryRun: true,
+      repo: {
+        fullName: `${ref.owner}/${ref.name}`,
+        description: input.description,
+        homepage: input.homepage,
+        topics: input.topics ?? [],
+      },
+      operation: "set_repo_metadata",
+    };
+  }
+
   const client = await createClient();
   await client.request(`/repos/${ref.owner}/${ref.name}`, "PATCH", {
     description: input.description,
@@ -32,6 +98,7 @@ export async function setRepoMetadata(input: GitHubRepoMetadataInput) {
   return {
     updated: true,
     verified: true,
+    dryRun: false,
     repo: {
       fullName: repo.full_name,
       description: repo.description,
@@ -42,6 +109,20 @@ export async function setRepoMetadata(input: GitHubRepoMetadataInput) {
 }
 
 export async function protectBranch(input: GitHubBranchProtectionInput) {
+  if (input.dryRun) {
+    return {
+      updated: false,
+      verified: false,
+      dryRun: true,
+      protection: {
+        branch: input.branch,
+        requiredChecks: input.requiredChecks ?? [],
+        requirePullRequest: Boolean(input.requirePullRequest),
+      },
+      operation: "protect_branch",
+    };
+  }
+
   const ref = parseRepo(input.repo);
   const client = await createClient();
   const protection = await client.request(`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(input.branch)}/protection`, "PUT", {
@@ -68,11 +149,16 @@ export async function protectBranch(input: GitHubBranchProtectionInput) {
   return {
     updated: true,
     verified: true,
+    dryRun: false,
     protection,
   };
 }
 
-export async function createOrUpdateLabels(repo: string, labels: GitHubLabelInput[]) {
+export async function createOrUpdateLabels(repo: string, labels: GitHubLabelInput[], dryRun = false) {
+  if (dryRun) {
+    return { created: [], updated: [], dryRun: true, labels };
+  }
+
   const ref = parseRepo(repo);
   const client = await createClient();
   const created: string[] = [];
@@ -93,7 +179,7 @@ export async function createOrUpdateLabels(repo: string, labels: GitHubLabelInpu
     }
   }
 
-  return { created, updated };
+  return { created, updated, dryRun: false };
 }
 
 export async function createOrGetMilestone(input: GitHubMilestoneInput) {
@@ -104,15 +190,24 @@ export async function createOrGetMilestone(input: GitHubMilestoneInput) {
     title: string;
     html_url: string;
   }>;
-  const existing = milestones.find((m) => m.title === input.title);
+  const existing = milestones.find((m) => normalizeComparableText(m.title) === normalizeComparableText(input.title));
   if (existing) {
-    return { created: false, number: existing.number, title: existing.title, url: existing.html_url };
+    return { created: false, number: existing.number, title: existing.title, url: existing.html_url, dryRun: false };
+  }
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      title: input.title,
+      url: `https://github.com/${input.repo}/milestones`,
+      dryRun: true,
+    };
   }
   const milestone = await client.request(`/repos/${ref.owner}/${ref.name}/milestones`, "POST", {
     title: input.title,
     description: input.description,
   });
-  return { created: true, number: milestone.number, title: milestone.title, url: milestone.html_url };
+  return { created: true, number: milestone.number, title: milestone.title, url: milestone.html_url, dryRun: false };
 }
 
 export async function createOrGetIssue(input: GitHubIssueInput) {
@@ -121,12 +216,23 @@ export async function createOrGetIssue(input: GitHubIssueInput) {
   const issues = (await client.request(`/repos/${ref.owner}/${ref.name}/issues?state=all&per_page=100`)) as Array<{
     number: number;
     title: string;
+    body?: string;
     html_url: string;
     pull_request?: unknown;
   }>;
-  const existing = issues.find((issue) => !issue.pull_request && issue.title === input.title);
+  const existing = findMatchingIssue(issues, input.title, input.body, Boolean(input.matchTitleOnly));
   if (existing) {
-    return { created: false, number: existing.number, url: existing.html_url };
+    return { created: false, number: existing.number, url: existing.html_url, dryRun: false, match: "existing" };
+  }
+
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      url: `https://github.com/${input.repo}/issues`,
+      dryRun: true,
+      match: "none",
+    };
   }
 
   const milestoneNumber = input.milestone ? await resolveMilestoneNumber(client, ref, input.milestone) : undefined;
@@ -136,7 +242,7 @@ export async function createOrGetIssue(input: GitHubIssueInput) {
     labels: input.labels,
     milestone: milestoneNumber,
   });
-  return { created: true, number: issue.number, url: issue.html_url };
+  return { created: true, number: issue.number, url: issue.html_url, dryRun: false, match: "none" };
 }
 
 export async function createOrUpdateRelease(input: GitHubReleaseInput) {
@@ -145,10 +251,15 @@ export async function createOrUpdateRelease(input: GitHubReleaseInput) {
   const releases = (await client.request(`/repos/${ref.owner}/${ref.name}/releases?per_page=100`)) as Array<{
     id: number;
     tag_name: string;
+    name?: string;
+    body?: string;
     html_url: string;
   }>;
-  const existing = releases.find((release) => release.tag_name === input.tag);
+  const existing = findMatchingRelease(releases, input.tag, input.title, input.notes, Boolean(input.matchTitleOnly));
   if (existing) {
+    if (input.dryRun) {
+      return { created: false, updated: false, dryRun: true, url: existing.html_url, match: "existing" };
+    }
     const updated = await client.request(`/repos/${ref.owner}/${ref.name}/releases/${existing.id}`, "PATCH", {
       tag_name: input.tag,
       target_commitish: input.target,
@@ -157,7 +268,16 @@ export async function createOrUpdateRelease(input: GitHubReleaseInput) {
       draft: Boolean(input.draft),
       prerelease: Boolean(input.prerelease),
     });
-    return { created: false, updated: true, url: updated.html_url };
+    return { created: false, updated: true, dryRun: false, url: updated.html_url, match: "existing" };
+  }
+  if (input.dryRun) {
+    return {
+      created: false,
+      updated: false,
+      dryRun: true,
+      url: `https://github.com/${input.repo}/releases`,
+      match: "none",
+    };
   }
   const release = await client.request(`/repos/${ref.owner}/${ref.name}/releases`, "POST", {
     tag_name: input.tag,
@@ -167,38 +287,127 @@ export async function createOrUpdateRelease(input: GitHubReleaseInput) {
     draft: Boolean(input.draft),
     prerelease: Boolean(input.prerelease),
   });
-  return { created: true, updated: false, url: release.html_url };
+  return { created: true, updated: false, dryRun: false, url: release.html_url, match: "none" };
 }
 
 export async function verifyRepoState(input: GitHubVerifyInput) {
   const ref = parseRepo(input.repo);
   const client = await createClient();
   const results: Record<string, boolean> = {};
+  const details: Record<string, unknown> = {};
 
   for (const check of input.checks) {
     if (check === "metadata") {
       const repo = await client.request(`/repos/${ref.owner}/${ref.name}`);
       results[check] = Boolean(repo?.full_name);
+      details[check] = {
+        fullName: repo?.full_name,
+        visibility: repo?.visibility,
+        hasIssues: repo?.has_issues,
+        hasWiki: repo?.has_wiki,
+        topics: repo?.topics ?? [],
+      };
     } else if (check === "branch_protection") {
       const branch = input.branch || "main";
       const protection = await client.request(`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(branch)}/protection`);
       results[check] = Boolean(protection?.url);
+      details[check] = {
+        branch,
+        requiredChecks: protection?.required_status_checks?.contexts ?? [],
+        enforceAdmins: protection?.enforce_admins?.enabled ?? false,
+        conversationResolution: protection?.required_conversation_resolution?.enabled ?? false,
+      };
     } else if (check === "labels") {
       const labels = await client.request(`/repos/${ref.owner}/${ref.name}/labels?per_page=100`);
       results[check] = Array.isArray(labels);
+      details[check] = { count: Array.isArray(labels) ? labels.length : 0 };
     } else if (check === "milestones") {
       const milestones = await client.request(`/repos/${ref.owner}/${ref.name}/milestones?state=all&per_page=100`);
       results[check] = Array.isArray(milestones);
+      details[check] = { count: Array.isArray(milestones) ? milestones.length : 0 };
     } else if (check === "issues") {
       const issues = await client.request(`/repos/${ref.owner}/${ref.name}/issues?state=all&per_page=100`);
+      const filtered = Array.isArray(issues) ? issues.filter((issue: any) => !issue.pull_request) : [];
       results[check] = Array.isArray(issues);
+      details[check] = { count: filtered.length };
     } else if (check === "releases") {
       const releases = await client.request(`/repos/${ref.owner}/${ref.name}/releases?per_page=100`);
-      results[check] = Array.isArray(releases) && (input.releaseTag ? releases.some((r: any) => r.tag_name === input.releaseTag) : true);
+      const tagMatched = input.releaseTag ? Array.isArray(releases) && releases.some((r: any) => r.tag_name === input.releaseTag) : true;
+      results[check] = Array.isArray(releases) && tagMatched;
+      details[check] = {
+        count: Array.isArray(releases) ? releases.length : 0,
+        releaseTag: input.releaseTag,
+        tagMatched,
+      };
     }
   }
 
-  return { ok: Object.values(results).every(Boolean), results };
+  return { ok: Object.values(results).every(Boolean), results, details };
+}
+
+export async function shipRepo(input: GitHubShipRepoInput) {
+  const dryRun = Boolean(input.dryRun || input.repo.dryRun);
+  const repoResult = await createOrGetRepo({ ...input.repo, dryRun });
+  const repo = `${input.repo.owner}/${input.repo.name}`;
+
+  const metadata = input.metadata ? await setRepoMetadata({ repo, ...input.metadata, dryRun }) : undefined;
+  const labels = input.labels?.length ? await createOrUpdateLabels(repo, input.labels, dryRun) : undefined;
+  const milestones = input.milestones?.length
+    ? await Promise.all(input.milestones.map((milestone) => createOrGetMilestone({ repo, ...milestone, dryRun })))
+    : [];
+  const issues = input.issues?.length
+    ? await Promise.all(input.issues.map((issue) => createOrGetIssue({ repo, ...issue, dryRun })))
+    : [];
+  const branchProtection = input.branchProtection
+    ? await protectBranch({ repo, ...input.branchProtection, dryRun })
+    : undefined;
+  const release = input.release ? await createOrUpdateRelease({ repo, ...input.release, dryRun }) : undefined;
+  const verify = input.verify ? (dryRun ? { ok: true, dryRun: true, checks: input.verify.checks } : await verifyRepoState({ repo, ...input.verify })) : undefined;
+
+  return {
+    ok: dryRun ? true : Boolean(repoResult && (verify?.ok ?? true)),
+    dryRun,
+    repo,
+    repoResult,
+    metadata,
+    labels,
+    milestones,
+    issues,
+    branchProtection,
+    release,
+    verify,
+  };
+}
+
+export function findMatchingIssue<T extends { title: string; body?: string; pull_request?: unknown }>(
+  issues: T[],
+  title: string,
+  body: string,
+  matchTitleOnly: boolean,
+): T | undefined {
+  const normalizedTitle = normalizeComparableText(title);
+  const normalizedBody = normalizeComparableText(body);
+  return issues.find((issue) => {
+    if (issue.pull_request) return false;
+    if (normalizeComparableText(issue.title) !== normalizedTitle) return false;
+    return matchTitleOnly || normalizeComparableText(issue.body ?? "") === normalizedBody;
+  });
+}
+
+export function findMatchingRelease<T extends { tag_name: string; name?: string; body?: string }>(
+  releases: T[],
+  tag: string,
+  title: string,
+  notes: string,
+  matchTitleOnly: boolean,
+): T | undefined {
+  const normalizedTitle = normalizeComparableText(title);
+  const normalizedNotes = normalizeComparableText(notes);
+  return releases.find((release) => {
+    if (release.tag_name === tag) return true;
+    if (normalizeComparableText(release.name ?? "") !== normalizedTitle) return false;
+    return matchTitleOnly || normalizeComparableText(release.body ?? "") === normalizedNotes;
+  });
 }
 
 async function resolveMilestoneNumber(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, title: string) {
@@ -206,7 +415,7 @@ async function resolveMilestoneNumber(client: Awaited<ReturnType<typeof createCl
     number: number;
     title: string;
   }>;
-  const match = milestones.find((m) => m.title === title);
+  const match = milestones.find((m) => normalizeComparableText(m.title) === normalizeComparableText(title));
   if (!match) {
     throw new Error(`Milestone not found: ${title}`);
   }

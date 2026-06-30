@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 - 2026-06-30
+
+Expanded release covering the initial roadmap issues.
+
+### Added
+- `github_create_repo`
+- `github_ship_repo`
+- dry-run support across mutating tools
+- richer auth diagnostics with optional repo access inspection
+- richer verification detail output
+
+### Improved
+- issue duplicate detection now uses normalized title/body matching
+- release duplicate detection now uses tag or normalized title/body matching
+- README updated to reflect the broader workflow surface
+
 ## 0.1.0 - 2026-06-30
 
 Initial release.
