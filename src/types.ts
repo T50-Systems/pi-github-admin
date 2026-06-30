@@ -79,6 +79,33 @@ export interface GitHubIssueInput {
   dryRun?: boolean;
 }
 
+export interface GitHubIssueCommentInput {
+  repo: string;
+  issueNumber: number;
+  body: string;
+  dryRun?: boolean;
+}
+
+export interface GitHubPullRequestCommentInput {
+  repo: string;
+  pullNumber: number;
+  body: string;
+  dryRun?: boolean;
+}
+
+export interface GitHubEditCommentInput {
+  repo: string;
+  commentId: number;
+  body: string;
+  dryRun?: boolean;
+}
+
+export interface GitHubDeleteCommentInput {
+  repo: string;
+  commentId: number;
+  dryRun?: boolean;
+}
+
 export interface GitHubReleaseInput {
   repo: string;
   tag: string;

@@ -43,3 +43,17 @@
 - installed the package globally from GitHub tag:
   - `git:github.com/T50-Systems/pi-github-admin@v0.2.0`
 - removed the previous local-path global install so Pi now resolves the package from the pinned release tag
+
+### Comment operations and roadmap refresh
+- added comment lifecycle support for GitHub conversations:
+  - `github_comment_issue`
+  - `github_comment_pr`
+  - `github_edit_comment`
+  - `github_delete_comment`
+- added tests for dry-run coverage of the new comment helpers
+- updated README examples for comment usage
+- created a broader roadmap issue for future phases:
+  - `#8 Roadmap: complete pi-github-admin beyond initial repo bootstrap scope`
+- verified with:
+  - `npm run typecheck`
+  - `npm test`
