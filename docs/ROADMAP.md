@@ -2,20 +2,18 @@
 
 ## Next
 
-- add `github_create_repo`
-- add composite `github_ship_repo`
-- add better duplicate detection for issues and releases
-- add richer verification policies and clearer diff output
+- safer presets for common branch-protection policies
+- clearer organization-level permission diagnostics for repo creation
+- optional diff-style output for dry-run results
 
 ## Soon
 
-- add dry-run mode
-- add safer branch-protection presets
-- improve auth diagnostics and permission checks
-- add commands for common workflows on top of the tools
+- add command wrappers for common workflows on top of the tools
+- import/export repo bootstrap plans
+- GitHub Projects support
 
 ## Later
 
-- import/export repo bootstrap plans
-- GitHub Projects support
 - PR and branch lifecycle helpers
+- richer org/team policy management
+- repo templates and scaffold presets
