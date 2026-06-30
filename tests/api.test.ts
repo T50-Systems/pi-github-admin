@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   addIssueLinksToPrBody,
+  createIssueComment,
+  createPullRequestComment,
+  deleteComment,
+  editComment,
   findMatchingIssue,
   findMatchingRelease,
   normalizeComparableText,
@@ -63,5 +67,52 @@ describe("addIssueLinksToPrBody", () => {
   it("does not duplicate existing issue links", () => {
     const body = addIssueLinksToPrBody("Refs #548\n", [548], "refs");
     expect(body).toBe("Refs #548\n");
+  });
+});
+
+describe("comment helpers", () => {
+  it("supports issue comment dry run", async () => {
+    const result = await createIssueComment({
+      repo: "T50-Systems/repuestos",
+      issueNumber: 218,
+      body: "hello",
+      dryRun: true,
+    });
+    expect(result.dryRun).toBe(true);
+    expect(result.url).toBe("https://github.com/T50-Systems/repuestos/issues/218");
+    expect(result.operation).toBe("comment_issue");
+  });
+
+  it("supports pr comment dry run", async () => {
+    const result = await createPullRequestComment({
+      repo: "T50-Systems/repuestos",
+      pullNumber: 217,
+      body: "hello",
+      dryRun: true,
+    });
+    expect(result.dryRun).toBe(true);
+    expect(result.url).toBe("https://github.com/T50-Systems/repuestos/pull/217");
+    expect(result.operation).toBe("comment_pr");
+  });
+
+  it("supports edit comment dry run", async () => {
+    const result = await editComment({
+      repo: "T50-Systems/repuestos",
+      commentId: 123,
+      body: "updated",
+      dryRun: true,
+    });
+    expect(result.dryRun).toBe(true);
+    expect(result.operation).toBe("edit_comment");
+  });
+
+  it("supports delete comment dry run", async () => {
+    const result = await deleteComment({
+      repo: "T50-Systems/repuestos",
+      commentId: 123,
+      dryRun: true,
+    });
+    expect(result.dryRun).toBe(true);
+    expect(result.operation).toBe("delete_comment");
   });
 });

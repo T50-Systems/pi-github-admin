@@ -48,6 +48,10 @@ The package resolves GitHub auth in this order:
 - `github_create_labels`
 - `github_create_milestone`
 - `github_create_issue`
+- `github_comment_issue`
+- `github_comment_pr`
+- `github_edit_comment`
+- `github_delete_comment`
 - `github_create_release`
 - `github_link_pr_issues`
 - `github_merge_pr_when_ready`
@@ -105,6 +109,33 @@ Criteria baked into the workflow:
 - link the existing issue in the PR body before merge
 - prefer `refs` for related/already-closed issues and `closes` only when this PR should close the issue
 - merge only when the PR is open, mergeable, and required checks are successful
+
+## Example
+
+```ts
+github_comment_issue({
+  repo: "T50-Systems/repuestos",
+  issueNumber: 218,
+  body: "Documentado localmente en docs/specs/issue-218.md",
+});
+
+github_comment_pr({
+  repo: "T50-Systems/repuestos",
+  pullNumber: 217,
+  body: "Listo para revisión.",
+});
+
+github_edit_comment({
+  repo: "T50-Systems/repuestos",
+  commentId: 123456789,
+  body: "Texto corregido",
+});
+
+github_delete_comment({
+  repo: "T50-Systems/repuestos",
+  commentId: 123456789,
+});
+```
 
 ## Proposed next improvements
 
