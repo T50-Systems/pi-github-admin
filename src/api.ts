@@ -2,9 +2,13 @@ import { resolveGitHubAuth } from "./auth.js";
 import type {
   GitHubBranchProtectionInput,
   GitHubCreateRepoInput,
+  GitHubDeleteCommentInput,
+  GitHubEditCommentInput,
+  GitHubIssueCommentInput,
   GitHubIssueInput,
   GitHubLabelInput,
   GitHubMilestoneInput,
+  GitHubPullRequestCommentInput,
   GitHubReleaseInput,
   GitHubRepoMetadataInput,
   GitHubRepoRef,
@@ -245,6 +249,70 @@ export async function createOrGetIssue(input: GitHubIssueInput) {
   return { created: true, number: issue.number, url: issue.html_url, dryRun: false, match: "none" };
 }
 
+export async function createIssueComment(input: GitHubIssueCommentInput) {
+  return createDiscussionComment({
+    repo: input.repo,
+    number: input.issueNumber,
+    kind: "issue",
+    body: input.body,
+    dryRun: input.dryRun,
+  });
+}
+
+export async function createPullRequestComment(input: GitHubPullRequestCommentInput) {
+  return createDiscussionComment({
+    repo: input.repo,
+    number: input.pullNumber,
+    kind: "pull",
+    body: input.body,
+    dryRun: input.dryRun,
+  });
+}
+
+export async function editComment(input: GitHubEditCommentInput) {
+  const ref = parseRepo(input.repo);
+  if (input.dryRun) {
+    return {
+      updated: false,
+      dryRun: true,
+      commentId: input.commentId,
+      url: `https://github.com/${input.repo}`,
+      operation: "edit_comment",
+    };
+  }
+
+  const client = await createClient();
+  const comment = await client.request(`/repos/${ref.owner}/${ref.name}/issues/comments/${input.commentId}`, "PATCH", {
+    body: input.body,
+  });
+  return {
+    updated: true,
+    dryRun: false,
+    commentId: input.commentId,
+    url: comment.html_url,
+  };
+}
+
+export async function deleteComment(input: GitHubDeleteCommentInput) {
+  const ref = parseRepo(input.repo);
+  if (input.dryRun) {
+    return {
+      deleted: false,
+      dryRun: true,
+      commentId: input.commentId,
+      operation: "delete_comment",
+    };
+  }
+
+  const client = await createClient();
+  await client.request(`/repos/${ref.owner}/${ref.name}/issues/comments/${input.commentId}`, "DELETE");
+  return {
+    deleted: true,
+    dryRun: false,
+    commentId: input.commentId,
+  };
+}
+
 export async function createOrUpdateRelease(input: GitHubReleaseInput) {
   const ref = parseRepo(input.repo);
   const client = await createClient();
@@ -420,6 +488,40 @@ async function resolveMilestoneNumber(client: Awaited<ReturnType<typeof createCl
     throw new Error(`Milestone not found: ${title}`);
   }
   return match.number;
+}
+
+async function createDiscussionComment(input: {
+  repo: string;
+  number: number;
+  kind: "issue" | "pull";
+  body: string;
+  dryRun?: boolean;
+}) {
+  const ref = parseRepo(input.repo);
+  if (input.dryRun) {
+    return {
+      created: false,
+      dryRun: true,
+      issueNumber: input.kind === "issue" ? input.number : undefined,
+      pullNumber: input.kind === "pull" ? input.number : undefined,
+      url: `https://github.com/${input.repo}/${input.kind === "issue" ? "issues" : "pull"}/${input.number}`,
+      commentId: undefined,
+      operation: input.kind === "issue" ? "comment_issue" : "comment_pr",
+    };
+  }
+
+  const client = await createClient();
+  const comment = await client.request(`/repos/${ref.owner}/${ref.name}/issues/${input.number}/comments`, "POST", {
+    body: input.body,
+  });
+  return {
+    created: true,
+    dryRun: false,
+    issueNumber: input.kind === "issue" ? input.number : undefined,
+    pullNumber: input.kind === "pull" ? input.number : undefined,
+    url: comment.html_url,
+    commentId: comment.id,
+  };
 }
 
 async function createClient() {
