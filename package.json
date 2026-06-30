@@ -1,6 +1,6 @@
 {
   "name": "pi-github-admin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pi-native GitHub admin tools for repos, metadata, branch protection, issues, milestones, labels, and releases.",
   "type": "module",
   "license": "MIT",
@@ -24,7 +24,9 @@
     "extensions",
     "src",
     "tests",
+    "docs",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "peerDependencies": {
