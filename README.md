@@ -1,6 +1,7 @@
 # pi-github-admin
 
 Pi-native GitHub admin tools for:
+- repo creation
 - repo metadata
 - branch protection
 - labels
@@ -8,6 +9,7 @@ Pi-native GitHub admin tools for:
 - issues
 - releases
 - final repo verification
+- end-to-end repo bootstrapping
 
 ## Why this package exists
 
@@ -18,6 +20,7 @@ Using raw `gh`, ad-hoc JSON, and one-off shell commands from an agent works, but
 - idempotent behavior where practical
 - consistent verification
 - cleaner error messages
+- dry-run support for mutating operations
 
 ## Install
 
@@ -32,9 +35,12 @@ The package resolves GitHub auth in this order:
 2. `GH_TOKEN`
 3. `gh auth token`
 
+`github_get_auth` can also inspect access to a specific repo and report scopes plus suggested remediation.
+
 ## Tools
 
 - `github_get_auth`
+- `github_create_repo`
 - `github_set_repo_metadata`
 - `github_protect_branch`
 - `github_create_labels`
@@ -42,18 +48,33 @@ The package resolves GitHub auth in this order:
 - `github_create_issue`
 - `github_create_release`
 - `github_verify_repo_state`
+- `github_ship_repo`
 
-## Initial scope
+## Current scope
 
-This first version intentionally focuses on the smallest useful set of operations that repeatedly caused friction in real agent workflows.
+This package now covers the smallest high-value GitHub admin workflow end to end:
+- create a repo
+- set metadata
+- sync labels
+- create milestones and issues
+- protect a branch
+- create or update a release
+- verify final state
+- optionally run the whole workflow as one declarative `github_ship_repo` call
+
+## Notable behavior
+
+- auth diagnostics can optionally inspect access to a specific repo
+- issue and release duplicate detection normalize title/body text instead of matching only exact raw strings
+- dry-run mode is available on mutating tools
+- verification returns richer detail instead of only booleans
 
 ## Proposed next improvements
 
-- add `github_create_repo`
-- add a composite `github_ship_repo` tool
-- add better duplicate detection policies for issues and releases
-- add richer repo verification policies
-- add optional dry-run mode
+- safer presets for common branch-protection policies
+- clearer organization-level permission diagnostics for repo creation
+- optional diff output for dry-run results
+- GitHub Projects support
 
 ## Development
 
