@@ -2,6 +2,14 @@
 
 ## 2026-06-30
 
+### Branch cleanup tool
+- added `github_delete_branch` so Pi can explicitly clean up/delete branches without relying on ad-hoc shell or repo-specific scripts
+- made the delete flow safer by defaulting to merged-only checks against the default branch unless overridden
+- added unit coverage for branch comparison safety classification
+- updated README and changelog to document the new branch cleanup capability
+
+## 2026-06-30
+
 ### Created `pi-github-admin`
 - established a Pi-native GitHub admin package focused on the smallest high-value repo operations
 - chose direct GitHub REST API calls instead of building on top of ad-hoc `gh` shell flows

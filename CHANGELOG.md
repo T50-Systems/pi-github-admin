@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `github_delete_branch` to safely delete branches with merged-only checks against the default or provided base branch.
+
 ## 0.4.0 - 2026-06-30
 
 ### Added

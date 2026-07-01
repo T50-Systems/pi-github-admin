@@ -9,6 +9,7 @@ import {
   createOrUpdateLabels,
   createOrUpdateRelease,
   createPullRequestComment,
+  deleteBranch,
   deleteComment,
   editComment,
   linkPullRequestIssues,
@@ -326,6 +327,37 @@ export function registerGitHubAdminTools(pi: ExtensionAPI): void {
       const result = await deleteComment(params);
       return {
         content: [{ type: "text", text: result.dryRun ? `Dry run: would delete comment ${params.commentId}` : `Deleted comment ${params.commentId}` }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_delete_branch",
+    label: "GitHub Delete Branch",
+    description: "Delete a GitHub branch safely, with optional merged-only checks against the default or provided base branch.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        branch: Type.String(),
+        baseBranch: Type.Optional(Type.String()),
+        requireMerged: Type.Optional(Type.Boolean()),
+        allowDefaultBranch: Type.Optional(Type.Boolean()),
+        dryRun: Type.Optional(Type.Boolean()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await deleteBranch(params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: result.dryRun
+              ? `Dry run: would delete branch ${params.repo}:${params.branch}`
+              : `Deleted branch ${params.repo}:${params.branch}`,
+          },
+        ],
         details: result,
       };
     },

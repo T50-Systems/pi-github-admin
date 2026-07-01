@@ -12,6 +12,7 @@ Pi-native GitHub admin tools for:
 - end-to-end repo bootstrapping
 - PR-to-issue linking
 - merge-ready PR merging
+- safe branch deletion / cleanup
 
 ## Why this package exists
 
@@ -52,6 +53,7 @@ The package resolves GitHub auth in this order:
 - `github_comment_pr`
 - `github_edit_comment`
 - `github_delete_comment`
+- `github_delete_branch`
 - `github_create_release`
 - `github_link_pr_issues`
 - `github_merge_pr_when_ready`
@@ -101,6 +103,14 @@ github_merge_pr_when_ready({
   "deleteBranch": true,
   "requireClean": true,
   "requireChecksSuccess": true
+})
+```
+
+```json
+github_delete_branch({
+  "repo": "T50-Systems/casas-portales-inmobiliarios-rd",
+  "branch": "chore/cleanup-stale-branch",
+  "requireMerged": true
 })
 ```
 
