@@ -12,6 +12,7 @@ import {
   deleteBranch,
   deleteComment,
   editComment,
+  getPullRequestChecks,
   linkPullRequestIssues,
   mergePullRequestWhenReady,
   protectBranch,
@@ -356,6 +357,33 @@ export function registerGitHubAdminTools(pi: ExtensionAPI): void {
             text: result.dryRun
               ? `Dry run: would delete branch ${params.repo}:${params.branch}`
               : `Deleted branch ${params.repo}:${params.branch}`,
+          },
+        ],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_get_pr_checks",
+    label: "GitHub Get PR Checks",
+    description: "Inspect the current check-run and status summary for a pull request, similar to `gh pr checks`.",
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        pullNumber: Type.Number(),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await getPullRequestChecks(params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: result.ok
+              ? `PR #${params.pullNumber} checks are passing`
+              : `PR #${params.pullNumber} has failing or pending checks`,
           },
         ],
         details: result,

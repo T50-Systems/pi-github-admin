@@ -138,6 +138,11 @@ export interface GitHubMergePullRequestInput {
   dryRun?: boolean;
 }
 
+export interface GitHubPullRequestChecksInput {
+  repo: string;
+  pullNumber: number;
+}
+
 export interface GitHubDeleteBranchInput {
   repo: string;
   branch: string;

@@ -11,6 +11,7 @@ import type {
   GitHubLinkPullRequestIssuesInput,
   GitHubMergePullRequestInput,
   GitHubMilestoneInput,
+  GitHubPullRequestChecksInput,
   GitHubPullRequestCommentInput,
   GitHubReleaseInput,
   GitHubRepoMetadataInput,
@@ -325,6 +326,32 @@ export async function mergePullRequestWhenReady(input: GitHubMergePullRequestInp
   }
 
   return { merged: result.merged, dryRun: false, pullNumber: pull.number, url: pull.html_url, sha: result.sha, message: result.message, deletedBranch, checks };
+}
+
+export async function getPullRequestChecks(input: GitHubPullRequestChecksInput) {
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const pull = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`)) as {
+    number: number;
+    state: string;
+    merged: boolean;
+    mergeable_state?: string;
+    html_url: string;
+    head: { sha: string; ref: string };
+  };
+  const checks = await getCheckRunSummary(client, ref, pull.head.sha);
+  return {
+    ok: checks.ok,
+    repo: input.repo,
+    pullNumber: pull.number,
+    state: pull.state,
+    merged: pull.merged,
+    mergeableState: pull.mergeable_state,
+    branch: pull.head.ref,
+    sha: pull.head.sha,
+    url: pull.html_url,
+    checks,
+  };
 }
 
 export async function createIssueComment(input: GitHubIssueCommentInput) {
