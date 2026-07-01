@@ -6,6 +6,7 @@
 - added `github_delete_branch` so Pi can explicitly clean up/delete branches without relying on ad-hoc shell or repo-specific scripts
 - made the delete flow safer by defaulting to merged-only checks against the default branch unless overridden
 - added `github_get_pr_checks` so Pi can inspect a PR like `gh pr checks <number> --repo <owner/name>`
+- added `github_list_prs` so Pi can inspect open/closed PR lists like `gh pr list --repo <owner/name>`
 - added unit coverage for branch comparison safety classification
 - updated README and changelog to document the new branch cleanup capability
 
