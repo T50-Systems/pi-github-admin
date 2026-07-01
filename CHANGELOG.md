@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 - 2026-06-30
+
+### Added
+- `github_delete_branch` to safely delete branches with merged-only checks against the default or provided base branch.
+- `github_get_pr_checks` to inspect PR check-run/status state similarly to `gh pr checks`.
+
 ## 0.4.0 - 2026-06-30
 
 ### Added

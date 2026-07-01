@@ -2,6 +2,7 @@ import { resolveGitHubAuth } from "./auth.js";
 import type {
   GitHubBranchProtectionInput,
   GitHubCreateRepoInput,
+  GitHubDeleteBranchInput,
   GitHubDeleteCommentInput,
   GitHubEditCommentInput,
   GitHubIssueCommentInput,
@@ -10,6 +11,7 @@ import type {
   GitHubLinkPullRequestIssuesInput,
   GitHubMergePullRequestInput,
   GitHubMilestoneInput,
+  GitHubPullRequestChecksInput,
   GitHubPullRequestCommentInput,
   GitHubReleaseInput,
   GitHubRepoMetadataInput,
@@ -326,6 +328,32 @@ export async function mergePullRequestWhenReady(input: GitHubMergePullRequestInp
   return { merged: result.merged, dryRun: false, pullNumber: pull.number, url: pull.html_url, sha: result.sha, message: result.message, deletedBranch, checks };
 }
 
+export async function getPullRequestChecks(input: GitHubPullRequestChecksInput) {
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const pull = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`)) as {
+    number: number;
+    state: string;
+    merged: boolean;
+    mergeable_state?: string;
+    html_url: string;
+    head: { sha: string; ref: string };
+  };
+  const checks = await getCheckRunSummary(client, ref, pull.head.sha);
+  return {
+    ok: checks.ok,
+    repo: input.repo,
+    pullNumber: pull.number,
+    state: pull.state,
+    merged: pull.merged,
+    mergeableState: pull.mergeable_state,
+    branch: pull.head.ref,
+    sha: pull.head.sha,
+    url: pull.html_url,
+    checks,
+  };
+}
+
 export async function createIssueComment(input: GitHubIssueCommentInput) {
   return createDiscussionComment({
     repo: input.repo,
@@ -433,6 +461,86 @@ export async function createOrUpdateRelease(input: GitHubReleaseInput) {
     prerelease: Boolean(input.prerelease),
   });
   return { created: true, updated: false, dryRun: false, url: release.html_url, match: "none" };
+}
+
+export async function deleteBranch(input: GitHubDeleteBranchInput) {
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const repo = (await client.request(`/repos/${ref.owner}/${ref.name}`)) as {
+    default_branch?: string;
+    html_url?: string;
+  };
+  const defaultBranch = repo.default_branch || "main";
+  const baseBranch = input.baseBranch || defaultBranch;
+
+  if (input.branch === defaultBranch && !input.allowDefaultBranch) {
+    throw new Error(`Refusing to delete default branch ${defaultBranch}. Set allowDefaultBranch=true to override.`);
+  }
+  if (input.branch === baseBranch) {
+    throw new Error(`Refusing to delete comparison base branch ${baseBranch}. Choose another baseBranch or target branch.`);
+  }
+
+  const branchInfo = (await client.request(`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(input.branch)}`)) as {
+    name: string;
+    commit?: { sha?: string };
+    protected?: boolean;
+  };
+
+  let compareSummary:
+    | {
+        status: string;
+        safeToDelete: boolean;
+        aheadBy?: number;
+        behindBy?: number;
+        totalCommits?: number;
+      }
+    | undefined;
+
+  if (input.requireMerged ?? true) {
+    const compare = (await client.request(
+      `/repos/${ref.owner}/${ref.name}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(input.branch)}`,
+    )) as {
+      status?: string;
+      ahead_by?: number;
+      behind_by?: number;
+      total_commits?: number;
+    };
+    compareSummary = summarizeBranchComparison(compare);
+    if (!compareSummary.safeToDelete) {
+      throw new Error(
+        `Branch ${input.branch} still has unique commits relative to ${baseBranch} (${compareSummary.status}). Refusing delete.`,
+      );
+    }
+  }
+
+  if (input.dryRun) {
+    return {
+      deleted: false,
+      dryRun: true,
+      repo: input.repo,
+      branch: input.branch,
+      defaultBranch,
+      baseBranch,
+      protected: Boolean(branchInfo.protected),
+      branchSha: branchInfo.commit?.sha,
+      compare: compareSummary,
+      operation: "delete_branch",
+      url: `${repo.html_url || `https://github.com/${input.repo}`}/tree/${encodeURIComponent(input.branch)}`,
+    };
+  }
+
+  await client.request(`/repos/${ref.owner}/${ref.name}/git/refs/heads/${encodeURIComponent(input.branch)}`, "DELETE");
+  return {
+    deleted: true,
+    dryRun: false,
+    repo: input.repo,
+    branch: input.branch,
+    defaultBranch,
+    baseBranch,
+    protected: Boolean(branchInfo.protected),
+    branchSha: branchInfo.commit?.sha,
+    compare: compareSummary,
+  };
 }
 
 export async function verifyRepoState(input: GitHubVerifyInput) {
@@ -564,6 +672,23 @@ export function addIssueLinksToPrBody(body: string, issueNumbers: number[], keyw
   const lines = [`## ${sectionTitle}`, "", ...missing.map((issueNumber) => `${normalizedKeyword} #${issueNumber}`)];
   const trimmed = body.trimEnd();
   return trimmed ? `${trimmed}\n\n${lines.join("\n")}\n` : `${lines.join("\n")}\n`;
+}
+
+export function summarizeBranchComparison(compare: {
+  status?: string;
+  ahead_by?: number;
+  behind_by?: number;
+  total_commits?: number;
+}) {
+  const status = compare.status || "unknown";
+  const safeToDelete = status === "behind" || status === "identical";
+  return {
+    status,
+    safeToDelete,
+    aheadBy: compare.ahead_by,
+    behindBy: compare.behind_by,
+    totalCommits: compare.total_commits,
+  };
 }
 
 async function getCheckRunSummary(client: Awaited<ReturnType<typeof createClient>>, ref: GitHubRepoRef, sha: string) {
