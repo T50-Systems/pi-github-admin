@@ -476,6 +476,9 @@ export async function deleteBranch(input: GitHubDeleteBranchInput) {
   if (input.branch === defaultBranch && !input.allowDefaultBranch) {
     throw new Error(`Refusing to delete default branch ${defaultBranch}. Set allowDefaultBranch=true to override.`);
   }
+  if (input.branch === baseBranch) {
+    throw new Error(`Refusing to delete comparison base branch ${baseBranch}. Choose another baseBranch or target branch.`);
+  }
 
   const branchInfo = (await client.request(`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(input.branch)}`)) as {
     name: string;
