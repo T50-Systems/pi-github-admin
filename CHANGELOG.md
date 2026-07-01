@@ -5,6 +5,7 @@
 ### Added
 - `github_delete_branch` to safely delete branches with merged-only checks against the default or provided base branch.
 - `github_get_pr_checks` to inspect PR check-run/status state similarly to `gh pr checks`.
+- `github_list_prs` to list pull requests similarly to `gh pr list --repo ...`.
 
 ## 0.4.0 - 2026-06-30
 

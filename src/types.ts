@@ -143,6 +143,14 @@ export interface GitHubPullRequestChecksInput {
   pullNumber: number;
 }
 
+export interface GitHubListPullRequestsInput {
+  repo: string;
+  state?: "open" | "closed" | "all";
+  base?: string;
+  head?: string;
+  limit?: number;
+}
+
 export interface GitHubDeleteBranchInput {
   repo: string;
   branch: string;
