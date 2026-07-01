@@ -9,6 +9,7 @@ import type {
   GitHubIssueInput,
   GitHubLabelInput,
   GitHubLinkPullRequestIssuesInput,
+  GitHubListPullRequestsInput,
   GitHubMergePullRequestInput,
   GitHubMilestoneInput,
   GitHubPullRequestChecksInput,
@@ -326,6 +327,42 @@ export async function mergePullRequestWhenReady(input: GitHubMergePullRequestInp
   }
 
   return { merged: result.merged, dryRun: false, pullNumber: pull.number, url: pull.html_url, sha: result.sha, message: result.message, deletedBranch, checks };
+}
+
+export async function listPullRequests(input: GitHubListPullRequestsInput) {
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+  const params = new URLSearchParams({
+    state: input.state ?? "open",
+    per_page: String(Math.min(Math.max(input.limit ?? 10, 1), 100)),
+  });
+  if (input.base) params.set("base", input.base);
+  if (input.head) params.set("head", input.head);
+  const pulls = (await client.request(`/repos/${ref.owner}/${ref.name}/pulls?${params.toString()}`)) as Array<{
+    number: number;
+    state: string;
+    title: string;
+    html_url: string;
+    draft?: boolean;
+    merged_at?: string | null;
+    head?: { ref?: string };
+    base?: { ref?: string };
+  }>;
+  return {
+    repo: input.repo,
+    state: input.state ?? "open",
+    count: pulls.length,
+    pulls: pulls.map((pull) => ({
+      number: pull.number,
+      state: pull.state,
+      title: pull.title,
+      url: pull.html_url,
+      draft: Boolean(pull.draft),
+      merged: Boolean(pull.merged_at),
+      head: pull.head?.ref,
+      base: pull.base?.ref,
+    })),
+  };
 }
 
 export async function getPullRequestChecks(input: GitHubPullRequestChecksInput) {

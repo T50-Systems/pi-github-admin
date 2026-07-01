@@ -14,6 +14,7 @@ import {
   editComment,
   getPullRequestChecks,
   linkPullRequestIssues,
+  listPullRequests,
   mergePullRequestWhenReady,
   protectBranch,
   setRepoMetadata,
@@ -357,6 +358,34 @@ export function registerGitHubAdminTools(pi: ExtensionAPI): void {
             text: result.dryRun
               ? `Dry run: would delete branch ${params.repo}:${params.branch}`
               : `Deleted branch ${params.repo}:${params.branch}`,
+          },
+        ],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "github_list_prs",
+    label: "GitHub List PRs",
+    description: "List pull requests for a repository, similar to `gh pr list --repo ...`." ,
+    parameters: Type.Object(
+      {
+        repo: Type.String(),
+        state: Type.Optional(Type.Union([Type.Literal("open"), Type.Literal("closed"), Type.Literal("all")])) ,
+        base: Type.Optional(Type.String()),
+        head: Type.Optional(Type.String()),
+        limit: Type.Optional(Type.Number()),
+      },
+      { additionalProperties: false },
+    ),
+    async execute(_id, params) {
+      const result = await listPullRequests(params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Found ${result.count} pull request(s) in ${params.repo}` ,
           },
         ],
         details: result,

@@ -13,6 +13,7 @@ Pi-native GitHub admin tools for:
 - PR-to-issue linking
 - merge-ready PR merging
 - PR checks inspection
+- PR listing
 - safe branch deletion / cleanup
 
 ## Why this package exists
@@ -59,6 +60,7 @@ The package resolves GitHub auth in this order:
 - `github_link_pr_issues`
 - `github_merge_pr_when_ready`
 - `github_get_pr_checks`
+- `github_list_prs`
 - `github_verify_repo_state`
 - `github_ship_repo`
 
@@ -120,6 +122,13 @@ github_delete_branch({
 github_get_pr_checks({
   "repo": "T50-Systems/casas-portales-inmobiliarios-rd",
   "pullNumber": 737
+})
+```
+
+```json
+github_list_prs({
+  "repo": "T50-Systems/pi-github-admin",
+  "limit": 10
 })
 ```
 
