@@ -138,6 +138,20 @@ export interface GitHubMergePullRequestInput {
   dryRun?: boolean;
 }
 
+export interface GitHubPullRequestChecksInput {
+  repo: string;
+  pullNumber: number;
+}
+
+export interface GitHubDeleteBranchInput {
+  repo: string;
+  branch: string;
+  baseBranch?: string;
+  requireMerged?: boolean;
+  allowDefaultBranch?: boolean;
+  dryRun?: boolean;
+}
+
 export interface GitHubVerifyInput {
   repo: string;
   checks: Array<"metadata" | "branch_protection" | "labels" | "milestones" | "issues" | "releases">;

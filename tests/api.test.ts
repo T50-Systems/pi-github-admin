@@ -9,6 +9,7 @@ import {
   findMatchingRelease,
   normalizeComparableText,
   parseRepo,
+  summarizeBranchComparison,
 } from "../src/api.js";
 
 describe("parseRepo", () => {
@@ -114,5 +115,23 @@ describe("comment helpers", () => {
     });
     expect(result.dryRun).toBe(true);
     expect(result.operation).toBe("delete_comment");
+  });
+});
+
+describe("summarizeBranchComparison", () => {
+  it("treats behind branches as safe to delete", () => {
+    expect(summarizeBranchComparison({ status: "behind", behind_by: 3, total_commits: 3 })).toMatchObject({
+      status: "behind",
+      safeToDelete: true,
+      behindBy: 3,
+    });
+  });
+
+  it("treats ahead branches as unsafe to delete", () => {
+    expect(summarizeBranchComparison({ status: "ahead", ahead_by: 2, total_commits: 2 })).toMatchObject({
+      status: "ahead",
+      safeToDelete: false,
+      aheadBy: 2,
+    });
   });
 });
