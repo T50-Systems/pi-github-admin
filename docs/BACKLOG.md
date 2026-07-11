@@ -16,6 +16,7 @@ Assign a milestone only when maintainers intend to schedule the work. Otherwise 
 
 | Issue | Foundation disposition | Follow-up boundary |
 | --- | --- | --- |
+| #8 | Phased roadmap and scope boundaries documented | Individual missing surfaces remain separate follow-up work |
 | #18 | Product vision, users, principles, and KPIs documented | Revisit KPI values quarterly |
 | #19 | README quickstart and troubleshooting path refreshed | Validate against clean-machine feedback |
 | #22 | High-risk offline dry-run and auth tests plus coverage thresholds added | Expand mocked API response/error cases with each tool change |
@@ -30,6 +31,6 @@ Assign a milestone only when maintainers intend to schedule the work. Otherwise 
 
 ## Issue #8 assessment
 
-Issue #8 is **not complete** and should remain open. The current surface covers bootstrap, comments create/edit/delete, PR listing/checks/linking/merge, safe branch deletion, and a PR-only protection preset. It still lacks substantial roadmap scope, including issue update/close/reopen, comment list/upsert, PR create/update/review/reopen, broader branch lifecycle and repository settings, collaborators/teams, Projects v2, rulesets/security settings, policy packs, bulk synchronization, and a plan/apply model.
+Issue #8 is complete as a **roadmap deliverable**, not as a claim that every GitHub API surface is implemented. Its acceptance criteria asked for explicit phases, clear scope boundaries, and a structure for decomposing future work; this document and [`ROADMAP.md`](ROADMAP.md) provide that.
 
-Future closure requires a fresh tool-surface inventory mapped to every section of #8, with tests and operator documentation for completed or intentionally rejected scope. This foundation change alone is not closure evidence.
+The current surface covers bootstrap, comment mutation, selected PR operations, safe branch deletion, and branch protection. Missing issue/PR lifecycle, broader branch/repository settings, collaborators/teams, Projects v2, rulesets, policy packs, bulk sync, and plan/apply remain intentionally grouped under **Next** and **Later** for separate bounded issues.
