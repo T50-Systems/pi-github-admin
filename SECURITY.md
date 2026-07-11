@@ -10,11 +10,11 @@ project does not currently promise backports to older release lines.
 Do not open a public issue containing a token, authorization header, private
 repository data, or reproducible exploit details.
 
-Use GitHub's **Report a vulnerability** flow on the repository Security page
-when private vulnerability reporting is available. If that option is not
-available, open a public issue with only a sanitized summary and ask the
-maintainers to establish a private contact channel. Include no secrets or
-sensitive reproduction data in that issue.
+Use the repository's private **Report a vulnerability** flow:
+<https://github.com/T50-Systems/pi-github-admin/security/advisories/new>. If the
+flow is unexpectedly unavailable, do not open a public report; contact a T50
+Systems repository administrator through an already trusted private channel and
+include no secret material until that channel is confirmed.
 
 A useful private report includes:
 
@@ -27,6 +27,28 @@ A useful private report includes:
 
 Revoke or rotate an exposed credential immediately; do not wait for project
 triage.
+
+
+## Security alert ownership and targets
+
+The repository maintainers own GitHub secret-scanning and dependency alerts. A
+maintainer acknowledges a new high/critical secret or dependency alert within one
+business day and other alerts within three business days. The owner then:
+
+1. validates reachability and records a sanitized disposition;
+2. marks false positives only with evidence and a reviewable reason;
+3. immediately revokes/rotates any plausibly exposed credential and escalates to
+   the owning organization administrator;
+4. applies or tracks a safe dependency update, with a five-business-day status
+   update for unresolved high/critical findings; and
+5. verifies closure in GitHub without copying sensitive alert payloads into public
+   issues or pull requests.
+
+`github_configure_security` provides a dry-run-first automation surface for private
+vulnerability reporting, secret scanning, push protection, non-provider patterns,
+validity checks, and Dependabot security updates. `github_verify_security` reads
+the resulting state. Applying those controls is a separate administrator action;
+tests use a mocked HTTP boundary and never alter a repository.
 
 ## Credential model
 

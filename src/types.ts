@@ -180,6 +180,21 @@ export interface GitHubVerifyInput {
 	releaseTag?: string;
 }
 
+export interface GitHubSecurityControlsInput {
+	repo: string;
+	privateVulnerabilityReporting?: boolean;
+	secretScanning?: boolean;
+	pushProtection?: boolean;
+	nonProviderPatterns?: boolean;
+	validityChecks?: boolean;
+	dependabotSecurityUpdates?: boolean;
+	dryRun?: boolean;
+}
+
+export interface GitHubVerifySecurityControlsInput {
+	repo: string;
+}
+
 export interface GitHubShipRepoInput {
 	repo: GitHubCreateRepoInput;
 	metadata?: Omit<GitHubRepoMetadataInput, "repo">;

@@ -94,6 +94,8 @@ setup fails, see [configuration, diagnostics, and recovery](docs/OPERATIONS.md).
 - `github_list_prs`
 - `github_verify_repo_state`
 - `github_ship_repo`
+- `github_configure_security`
+- `github_verify_security`
 
 ## Current scope
 
@@ -107,6 +109,7 @@ This package now covers the smallest high-value GitHub admin workflow end to end
 - create or update a release
 - verify final state
 - optionally run the whole workflow as one declarative `github_ship_repo` call
+- configure and verify supported GitHub-native repository security controls
 
 ## Notable behavior
 
@@ -121,6 +124,10 @@ This package now covers the smallest high-value GitHub admin workflow end to end
   before merging
 - `github_require_pr_for_main` is the shortcut for the common policy: `main`
   requires PR merges, with zero required reviews.
+- complete-result operations paginate with bounded page/item guards; list-style tools
+  retain their requested limit and return `truncated` when more results exist
+- internal GitHub requests use a 10-second default timeout, retry bounded read-only
+  transient failures, and surface sanitized structured recovery metadata
 
 ## PR discipline workflow
 

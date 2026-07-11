@@ -13,22 +13,26 @@ explicit request being handled.
 | Path | Responsibility | Must not own |
 | --- | --- | --- |
 | `extensions/index.ts` | Package entry point used by Pi. | Tool behavior or GitHub API calls. |
-| `src/index.ts` | Registers the extension and exports the public TypeScript API. | Request schemas or network implementation. |
-| `src/tools.ts` | Defines TypeBox schemas, registers Pi tools, and adapts tool results for Pi. | GitHub REST details or authentication discovery. |
-| `src/api.ts` | Implements GitHub operations, dry runs, idempotency checks, and response shaping. | Pi registration or credential discovery. |
+| `src/index.ts` | Registers the extension and exports the stable public TypeScript API. | Request schemas or network implementation. |
+| `src/tools.ts` | Thin stable Pi registration facade. | Resource behavior. |
+| `src/tool-domains/` and `src/tool-registrations.ts` | Resource catalog, domain schemas/handlers, and compatibility registration implementation. | GitHub REST transport. |
+| `src/api.ts` and `src/api-domains/` | Thin stable API facade and resource exports for repositories, issues, PRs/comments, branches/protection, releases, and verification/composition. | Authentication discovery or Pi registration. |
+| `src/api-operations.ts` | Compatibility implementation used by the resource modules; composition calls smaller exported operations. | Pi registration. |
+| `src/http.ts` | Authenticated request transport, typed sanitized errors, bounded timeout/retry policy, and guarded Link pagination. | Resource policy or Pi formatting. |
+| `src/security.ts` | Repository security-control apply/verify operations. | Live setting changes without an explicit call. |
 | `src/auth.ts` | Resolves credentials and reports authentication/access diagnostics. | Business operations against repositories. |
 | `src/types.ts` | Defines shared inputs and result-related types. | Runtime behavior. |
-| `tests/` | Verifies pure helpers, dry-run behavior, and package exports. | Live mutation of GitHub resources. |
+| `tests/` | Verifies mocked request boundaries, dry runs, guards, pagination, and tool contracts. | Live mutation of GitHub resources. |
 
 The dependency direction is intentionally one way:
 
 ```text
-extensions/index.ts
-  -> src/index.ts
-       -> src/tools.ts
-            -> src/api.ts
-                 -> src/auth.ts
-            -> src/types.ts
+extensions/index.ts -> src/index.ts
+  -> src/tools.ts -> tool domain catalog/registrations
+       -> src/api.ts -> resource domain modules
+            -> api operations / security operations
+                 -> src/http.ts -> src/auth.ts
+  -> src/types.ts
 ```
 
 `src/index.ts` also re-exports the API, authentication helpers, and types for
@@ -40,11 +44,11 @@ programmatic consumers.
    `src/index.ts`.
 2. `registerGitHubAdminTools` registers each tool name, description, and input
    schema.
-3. A tool handler passes validated input to the matching function in
-   `src/api.ts`.
-4. Mutating operations return a plan without contacting GitHub when `dryRun` is
-   true. Otherwise the API layer asks `src/auth.ts` for a token and calls the
-   GitHub REST API.
+3. A tool handler passes validated input to the matching resource-domain export
+   behind `src/api.ts`.
+4. Mutating operations return a plan before auth or HTTP when `dryRun` is true.
+   Otherwise they use `src/http.ts`, which resolves auth, applies bounded transport
+   policy, and returns typed structured failures.
 5. The handler returns a structured result to Pi. Authentication diagnostics
    may include the credential source, but never the credential value.
 
@@ -57,8 +61,8 @@ semantics.
 When adding or changing a tool:
 
 - Define or update its shared input type in `src/types.ts`.
-- Keep GitHub HTTP behavior in `src/api.ts`; keep Pi schemas and registration in
-  `src/tools.ts`.
+- Keep resource behavior in the matching `src/api-domains/` boundary, transport in
+  `src/http.ts`, and Pi schemas/registration in the matching `src/tool-domains/` boundary.
 - Add `dryRun` to mutations and ensure dry runs do not resolve credentials or
   make network requests.
 - Prefer idempotent create-or-update behavior where GitHub supports it.

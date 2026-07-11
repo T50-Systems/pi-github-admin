@@ -8,3 +8,5 @@ export default function githubAdminExtension(pi: ExtensionAPI): void {
 export * from "./auth.js";
 export * from "./api.js";
 export * from "./types.js";
+export * from "./http.js";
+export * from "./security.js";
