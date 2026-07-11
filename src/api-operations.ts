@@ -1065,7 +1065,13 @@ async function getCheckRunSummary(
 		`/repos/${ref.owner}/${ref.name}/commits/${sha}/statuses?per_page=100`,
 	);
 	const checkRuns = checkRunResult.items;
-	const statuses = statusResult.items;
+	const statuses: Array<{ context: string; state: string }> = [];
+	const seenStatusContexts = new Set<string>();
+	for (const status of statusResult.items) {
+		if (seenStatusContexts.has(status.context)) continue;
+		seenStatusContexts.add(status.context);
+		statuses.push(status);
+	}
 	const combinedState = statuses.length === 0
 		? undefined
 		: statuses.every((status) => status.state === "success")

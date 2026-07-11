@@ -199,6 +199,27 @@ describe("mocked mutation request paths", () => {
 		await expect(listPullRequests({ repo: "o/r", limit: 1 })).resolves.toMatchObject({ count: 1, limit: 1, truncated: true });
 	});
 
+it("uses only the newest legacy status for each context", async () => {
+		const client = {
+			request: vi.fn(async (path: string) => path.includes("/pulls/1")
+				? { number: 1, state: "open", merged: false, mergeable_state: "clean", html_url: "pr", head: { sha: "abc", ref: "topic" } }
+				: []),
+			requestWithMeta: vi.fn(async (path: string) => {
+				if (path.includes("check-runs")) return meta({ check_runs: [] });
+				if (path.includes("/statuses")) return meta([
+					{ context: "legacy", state: "success" },
+					{ context: "legacy", state: "failure" },
+				]);
+				return meta([]);
+			}),
+		} as unknown as GitHubClient;
+		install(client);
+		await expect(getPullRequestChecks({ repo: "o/r", pullNumber: 1 })).resolves.toMatchObject({
+			ok: true,
+			checks: { statuses: 1, combinedStatus: "success", failed: [] },
+		});
+	});
+
 	it("surfaces authorization, not-found, conflict, and partial composite failures", async () => {
 		for (const status of [401, 404, 409]) {
 			const error = new GitHubApiError({ message: `status ${status}`, method: "PATCH", path: "/repos/o/r", status });
