@@ -36,16 +36,15 @@ committed lockfile is honored exactly.
 5. Run the same checks as CI before committing:
 
    ```bash
-   npm run typecheck
-   npm test
-   ```
-
-6. For package-content changes, also inspect the publish set without creating a
-   release:
-
-   ```bash
+   npm run verify
+   npm audit --audit-level=high
    npm pack --dry-run
    ```
+
+6. Run `npm run benchmark` for changes to parsing, matching, response shaping, or
+   composite planning and report any material median change.
+7. Follow [`docs/RELEASING.md`](docs/RELEASING.md) for version, changelog, tag,
+   and upgrade requirements.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for module boundaries and
 extension rules.
@@ -81,6 +80,8 @@ do not paste `gh auth token` output into an issue or pull request.
 - [ ] The change is linked to an existing issue when one applies.
 - [ ] Mutating behavior supports and tests `dryRun`.
 - [ ] No credentials or sensitive response data are logged or committed.
-- [ ] `npm run typecheck` passes.
-- [ ] `npm test` passes.
+- [ ] `npm run verify` passes, including coverage and release metadata checks.
+- [ ] `npm audit --audit-level=high` passes.
+- [ ] `npm pack --dry-run` contains only intended publish files.
+- [ ] Performance-sensitive changes include benchmark evidence.
 - [ ] Documentation and examples match the implemented behavior.

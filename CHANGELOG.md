@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Product vision, success metrics, operational recovery, integration, performance,
+  release, and backlog-governance guides.
+- Coverage thresholds, offline dry-run regression tests, authentication tests, and
+  a reproducible helper benchmark.
+- Release metadata verification and standardized CI validation.
+
+### Changed
+
+- Repository parsing now rejects malformed references with extra path segments or
+  surrounding whitespace.
+- Repository, milestone, issue, release, and composite dry runs no longer resolve
+  credentials or make GitHub requests.
+- The README now provides a verification-first quickstart.
+
 ## 0.6.0 - 2026-07-01
 
 ### Added in 0.6.0

@@ -31,22 +31,46 @@ tasks in Pi tools with:
 - cleaner error messages
 - dry-run support for mutating operations
 
-## Install
+## Quickstart
+
+Prerequisites: Node.js 22+, npm, Pi, and either GitHub CLI (`gh`) or a
+least-privileged GitHub token.
 
 ```bash
-pi install /absolute/path/to/pi-github-admin
+git clone https://github.com/T50-Systems/pi-github-admin.git
+cd pi-github-admin
+npm ci
+npm run verify
+pi install "$(pwd)"
 ```
 
-## Auth
+On Windows PowerShell, replace `"$(pwd)"` with the absolute checkout path. Restart
+Pi if it was already running, then confirm the extension exposes
+`github_get_auth`.
 
-The package resolves GitHub auth in this order:
+Authenticate with exactly one of these sources (highest priority first):
 
 1. `GITHUB_TOKEN`
 2. `GH_TOKEN`
-3. `gh auth token`
+3. `gh auth token` after `gh auth login`
 
-`github_get_auth` can also inspect access to a specific repo and report scopes
-plus suggested remediation.
+Start with a read-only access check:
+
+```json
+github_get_auth({ "repo": "T50-Systems/pi-github-admin" })
+```
+
+Next, preview a safe policy operation without network mutation:
+
+```json
+github_require_pr_for_main({
+  "repo": "T50-Systems/example-repo",
+  "dryRun": true
+})
+```
+
+Review the structured plan before repeating a mutating call without `dryRun`. If
+setup fails, see [configuration, diagnostics, and recovery](docs/OPERATIONS.md).
 
 ## Tools
 
@@ -207,17 +231,26 @@ github_delete_comment({
 });
 ```
 
-## Proposed next improvements
+## Project direction and operator guides
 
-- safer presets for common branch-protection policies
-- clearer organization-level permission diagnostics for repo creation
-- optional diff output for dry-run results
-- GitHub Projects support
+- [Vision, users, principles, and KPIs](docs/VISION.md)
+- [Architecture and extension boundaries](docs/ARCHITECTURE.md)
+- [Configuration, diagnostics, and recovery](docs/OPERATIONS.md)
+- [Examples and integration recipes](docs/INTEGRATIONS.md)
+- [Performance baseline](docs/PERFORMANCE.md)
+- [Release and changelog workflow](docs/RELEASING.md)
+- [Roadmap](docs/ROADMAP.md) and [backlog governance](docs/BACKLOG.md)
 
 ## Development
 
 ```bash
-npm install
-npm run typecheck
-npm test
+npm ci
+npm run verify
+npm run benchmark
+npm audit --audit-level=high
+npm pack --dry-run
 ```
+
+`npm run verify` runs type checking, tests with coverage thresholds, and release
+metadata validation. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing the
+tool surface.
