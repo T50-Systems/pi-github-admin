@@ -19,4 +19,20 @@ describe("release verification", () => {
 		expect(result.status).not.toBe(0);
 		expect(result.stderr).toContain("does not match package version v0.6.0");
 	});
+
+it("does not treat pull request refs as release tags", () => {
+		const result = spawnSync(process.execPath, ["scripts/verify-release.mjs"], {
+			cwd,
+			encoding: "utf8",
+			env: {
+				...process.env,
+				EXPECTED_RELEASE_TAG: "",
+				GITHUB_REF: "refs/pull/43/merge",
+				GITHUB_REF_NAME: "43/merge",
+				GITHUB_REF_TYPE: "branch",
+			},
+		});
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("Release metadata verified");
+	});
 });

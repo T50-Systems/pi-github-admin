@@ -24,9 +24,12 @@ if (!releaseHeading.test(changelog)) {
   errors.push(`CHANGELOG.md is missing a dated heading for ${pkg.version}`);
 }
 
-const suppliedTag = process.env.EXPECTED_RELEASE_TAG || process.env.GITHUB_REF_NAME;
+const githubTag = process.env.GITHUB_REF_TYPE === "tag" || process.env.GITHUB_REF?.startsWith("refs/tags/")
+	? process.env.GITHUB_REF_NAME
+	: undefined;
+const suppliedTag = process.env.EXPECTED_RELEASE_TAG || githubTag;
 if (suppliedTag && suppliedTag !== `v${pkg.version}`) {
-  errors.push(`release tag ${suppliedTag} does not match package version v${pkg.version}`);
+	errors.push(`release tag ${suppliedTag} does not match package version v${pkg.version}`);
 }
 
 if (process.env.VERIFY_RELEASE_TAG === "1") {
