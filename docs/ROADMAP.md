@@ -27,8 +27,6 @@ for its own sake. See `BACKLOG.md` for intake and milestone governance.
 
 ## Scope checkpoint: issue #8
 
-Issue #8 remains open. Current tools cover bootstrap, comment mutation, selected PR
-operations, safe branch deletion, and branch protection, but do not satisfy the
-full communication, lifecycle, organization, project, governance, and bulk-workflow
-scope described there. Closure requires a section-by-section inventory with evidence;
-the maintainer-foundation work documented here is not sufficient by itself.
+Issue #8's roadmap acceptance criteria are satisfied by this phased plan and the intake/milestone governance in [`BACKLOG.md`](BACKLOG.md). Closing the roadmap issue does not claim that every listed operation exists; each missing surface remains an independently implementable **Next** or **Later** backlog item.
+
+Current tools cover bootstrap, comment mutation, selected PR operations, safe branch deletion, and branch protection. The remaining communication, lifecycle, organization, project, governance, and bulk-workflow areas stay explicitly deferred until decomposed into bounded issues with tests and operator evidence.
