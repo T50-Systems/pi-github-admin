@@ -77,10 +77,14 @@ The required local and CI checks are:
 
 ```bash
 npm ci
-npm run typecheck
-npm test
+npm run verify
+npm audit --audit-level=high
+npm pack --dry-run
 ```
 
-CI runs type checking and the Vitest suite on pull requests and pushes to
-`main`. There is currently no separate compile or bundle artifact: Pi loads the
-TypeScript extension entry point declared in `package.json`.
+`npm run verify` runs type checking, the Vitest suite with committed coverage
+thresholds, and release/changelog metadata verification. CI runs the same checks on
+pull requests and pushes to `main`. `npm run benchmark` is required for
+performance-sensitive helper or planning changes but is not a shared-runner gate.
+There is no separate compile or bundle artifact: Pi loads the TypeScript extension
+entry point declared in `package.json`.

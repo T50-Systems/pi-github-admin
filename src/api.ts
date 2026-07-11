@@ -23,10 +23,11 @@ import type {
 } from "./types.js";
 
 export function parseRepo(repo: string): GitHubRepoRef {
-	const [owner, name] = repo.split("/");
-	if (!owner || !name)
-		throw new Error(`Invalid repo reference: ${repo}. Use owner/name.`);
-	return { owner, name };
+  const parts = repo.split("/");
+  if (parts.length !== 2 || parts.some((part) => !part.trim() || part !== part.trim())) {
+    throw new Error(`Invalid repo reference: ${repo}. Use owner/name.`);
+  }
+  return { owner: parts[0], name: parts[1] };
 }
 
 export function normalizeComparableText(value: string): string {
@@ -34,7 +35,17 @@ export function normalizeComparableText(value: string): string {
 }
 
 export async function createOrGetRepo(input: GitHubCreateRepoInput) {
-	const client = await createClient();
+  if (input.dryRun) {
+    return {
+      created: false,
+      existed: false,
+      dryRun: true,
+      fullName: `${input.owner}/${input.name}`,
+      url: `https://github.com/${input.owner}/${input.name}`,
+      operation: "create_repo",
+    };
+  }
+  const client = await createClient();
 	const repoPath = `/repos/${input.owner}/${input.name}`;
 	try {
 		const existing = await client.request(repoPath);
@@ -49,16 +60,6 @@ export async function createOrGetRepo(input: GitHubCreateRepoInput) {
 		if (!isNotFound(error)) throw error;
 	}
 
-	if (input.dryRun) {
-		return {
-			created: false,
-			existed: false,
-			dryRun: true,
-			fullName: `${input.owner}/${input.name}`,
-			url: `https://github.com/${input.owner}/${input.name}`,
-			operation: "create_repo",
-		};
-	}
 
 	const viewer = await client.request(`/user`);
 	const createPath =
@@ -242,8 +243,17 @@ export async function createOrUpdateLabels(
 }
 
 export async function createOrGetMilestone(input: GitHubMilestoneInput) {
-	const ref = parseRepo(input.repo);
-	const client = await createClient();
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      title: input.title,
+      url: `https://github.com/${input.repo}/milestones`,
+      dryRun: true,
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
 	const milestones = (await client.request(
 		`/repos/${ref.owner}/${ref.name}/milestones?state=all&per_page=100`,
 	)) as Array<{
@@ -264,15 +274,6 @@ export async function createOrGetMilestone(input: GitHubMilestoneInput) {
 			dryRun: false,
 		};
 	}
-	if (input.dryRun) {
-		return {
-			created: false,
-			number: undefined,
-			title: input.title,
-			url: `https://github.com/${input.repo}/milestones`,
-			dryRun: true,
-		};
-	}
 	const milestone = await client.request(
 		`/repos/${ref.owner}/${ref.name}/milestones`,
 		"POST",
@@ -291,8 +292,17 @@ export async function createOrGetMilestone(input: GitHubMilestoneInput) {
 }
 
 export async function createOrGetIssue(input: GitHubIssueInput) {
-	const ref = parseRepo(input.repo);
-	const client = await createClient();
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      url: `https://github.com/${input.repo}/issues`,
+      dryRun: true,
+      match: "none",
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
 	const issues = (await client.request(
 		`/repos/${ref.owner}/${ref.name}/issues?state=all&per_page=100`,
 	)) as Array<{
@@ -318,15 +328,6 @@ export async function createOrGetIssue(input: GitHubIssueInput) {
 		};
 	}
 
-	if (input.dryRun) {
-		return {
-			created: false,
-			number: undefined,
-			url: `https://github.com/${input.repo}/issues`,
-			dryRun: true,
-			match: "none",
-		};
-	}
 
 	const milestoneNumber = input.milestone
 		? await resolveMilestoneNumber(client, ref, input.milestone)
@@ -650,8 +651,17 @@ export async function deleteComment(input: GitHubDeleteCommentInput) {
 }
 
 export async function createOrUpdateRelease(input: GitHubReleaseInput) {
-	const ref = parseRepo(input.repo);
-	const client = await createClient();
+  if (input.dryRun) {
+    return {
+      created: false,
+      updated: false,
+      dryRun: true,
+      url: `https://github.com/${input.repo}/releases`,
+      match: "none",
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
 	const releases = (await client.request(
 		`/repos/${ref.owner}/${ref.name}/releases?per_page=100`,
 	)) as Array<{
@@ -696,15 +706,6 @@ export async function createOrUpdateRelease(input: GitHubReleaseInput) {
 			dryRun: false,
 			url: updated.html_url,
 			match: "existing",
-		};
-	}
-	if (input.dryRun) {
-		return {
-			created: false,
-			updated: false,
-			dryRun: true,
-			url: `https://github.com/${input.repo}/releases`,
-			match: "none",
 		};
 	}
 	const release = await client.request(

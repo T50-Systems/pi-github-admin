@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-	addIssueLinksToPrBody,
-	createIssueComment,
-	createPullRequestComment,
-	deleteComment,
-	editComment,
-	findMatchingIssue,
-	findMatchingRelease,
-	normalizeComparableText,
-	parseRepo,
-	requirePrForMain,
-	summarizeBranchComparison,
+  addIssueLinksToPrBody,
+  createIssueComment,
+  createOrGetIssue,
+  createOrGetMilestone,
+  createOrGetRepo,
+  createOrUpdateRelease,
+  createPullRequestComment,
+  deleteComment,
+  editComment,
+  findMatchingIssue,
+  findMatchingRelease,
+  normalizeComparableText,
+  parseRepo,
+  requirePrForMain,
+  shipRepo,
+  summarizeBranchComparison,
 } from "../src/api.js";
 
 describe("parseRepo", () => {
@@ -24,6 +29,13 @@ describe("parseRepo", () => {
 	it("throws on invalid repo", () => {
 		expect(() => parseRepo("pi-thread-goal")).toThrow(/Invalid repo reference/);
 	});
+
+  it.each(["owner/repo/extra", "/repo", "owner/", " owner/repo", "owner/repo "])(
+    "rejects malformed repo reference %s",
+    (repo) => {
+      expect(() => parseRepo(repo)).toThrow(/Invalid repo reference/);
+    },
+  );
 });
 
 describe("requirePrForMain", () => {
@@ -195,4 +207,71 @@ describe("summarizeBranchComparison", () => {
 			aheadBy: 2,
 		});
 	});
+});
+
+describe("offline dry runs", () => {
+  it("plans create operations without resolving auth or calling GitHub", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error("dry runs must not use fetch");
+    };
+
+    try {
+      const [repo, milestone, issue, release] = await Promise.all([
+        createOrGetRepo({ owner: "T50-Systems", name: "demo", dryRun: true }),
+        createOrGetMilestone({ repo: "T50-Systems/demo", title: "v1", dryRun: true }),
+        createOrGetIssue({
+          repo: "T50-Systems/demo",
+          title: "Example",
+          body: "Body",
+          dryRun: true,
+        }),
+        createOrUpdateRelease({
+          repo: "T50-Systems/demo",
+          tag: "v1.0.0",
+          title: "v1.0.0",
+          notes: "Notes",
+          dryRun: true,
+        }),
+      ]);
+
+      expect(repo).toMatchObject({ dryRun: true, operation: "create_repo" });
+      expect(milestone).toMatchObject({ dryRun: true, title: "v1" });
+      expect(issue).toMatchObject({ dryRun: true, match: "none" });
+      expect(release).toMatchObject({ dryRun: true, match: "none" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("plans the complete composite workflow offline", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error("dry runs must not use fetch");
+    };
+
+    try {
+      const result = await shipRepo({
+        repo: { owner: "T50-Systems", name: "demo", dryRun: true },
+        metadata: { description: "Demo", topics: ["pi"] },
+        labels: [{ name: "roadmap", color: "5319e7" }],
+        milestones: [{ title: "Foundation" }],
+        issues: [{ title: "First issue", body: "Body" }],
+        branchProtection: { branch: "main", requirePullRequest: true },
+        release: { tag: "v1.0.0", title: "v1.0.0", notes: "Notes" },
+        verify: { checks: ["metadata", "issues", "releases"] },
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        dryRun: true,
+        repo: "T50-Systems/demo",
+        verify: { ok: true, dryRun: true },
+      });
+      expect(result.issues).toHaveLength(1);
+      expect(result.milestones).toHaveLength(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

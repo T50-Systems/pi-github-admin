@@ -1,0 +1,46 @@
+# Configuration, diagnostics, and recovery
+
+## Configuration model
+
+The extension has no configuration file and persists no state. Inputs are explicit per tool call. Runtime configuration is limited to authentication:
+
+| Priority | Source | Recommended use |
+| --- | --- | --- |
+| 1 | `GITHUB_TOKEN` | CI or a deliberately scoped local session |
+| 2 | `GH_TOKEN` | Compatibility with GitHub CLI-oriented environments |
+| 3 | `gh auth token` | Interactive local use after `gh auth login` |
+
+Use one source at a time so credential selection is obvious. Never commit `.env` files or token output. GitHub API version and headers are owned by the shared request layer and are not user-overridable.
+
+## First diagnostics
+
+1. Run `github_get_auth` with the target `owner/repo` when one exists.
+2. Confirm `authenticated`, credential `source`, scopes, and repository permissions.
+3. Preview the intended mutation with `dryRun: true`.
+4. Apply the smallest operation.
+5. Use `github_verify_repo_state` or the relevant read tool to verify the result.
+
+The package intentionally emits structured results rather than application logs or metrics. Pi's tool-call transcript is the operation trace; sanitize it before sharing because repository names and issue content may still be sensitive.
+
+## Failure and recovery table
+
+| Symptom | Likely cause | Safe recovery |
+| --- | --- | --- |
+| No GitHub auth available | No environment token and `gh` is unavailable or logged out | Set a least-privileged token or run `gh auth login`, then retry `github_get_auth` |
+| `401` | Expired, revoked, or invalid credential | Rotate/re-authenticate; do not paste the token into logs |
+| `403` | Missing permission, org policy, branch rule, or rate limit | Inspect auth/repo permissions and GitHub response; request only the required permission |
+| `404` for a known private repo | Wrong `owner/name` or token cannot see it | Check spelling and repository access; GitHub may mask authorization failures as 404 |
+| `409`/`422` | State conflict or validation failure | Re-read current state, correct inputs, and repeat a dry run rather than forcing the change |
+| Merge helper reports pending/failed checks | PR preconditions are not satisfied | Inspect `github_get_pr_checks`; fix or wait for checks, then retry |
+| Branch deletion is refused | Default/base branch or unique commits detected | Choose the correct branch/base; merge or preserve unique commits before retrying |
+| Partial composite workflow | Earlier API calls succeeded before a later call failed | Run `github_verify_repo_state`, compare actual state, then rerun idempotent steps individually |
+
+## Debugging and observability boundaries
+
+- Record tool name, sanitized input, start/end time, result status, and GitHub request ID when Pi exposes it.
+- Never record tokens, authorization headers, private response bodies, or unsanitized errors.
+- Use `dryRun` output as the planned-change record and verification output as the actual-state record.
+- GitHub API latency, rate limits, and service health are external. Check GitHub Status before changing code in response to transient failures.
+- There is no background worker or health endpoint. A successful `github_get_auth` plus a read-only repository operation is the current health check.
+
+Escalate repeated or ambiguous failures with the tool name, sanitized status/message, target resource type, and exact recovery steps already attempted.
