@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Verify version, lockfile, tag, changelog, types, tests, and coverage
+        env:
+          EXPECTED_RELEASE_TAG: ${{ github.ref_name }}
+          VERIFY_RELEASE_TAG: "1"
+        run: npm run verify
+
+      - name: Audit production dependency tree
+        run: npm audit --audit-level=high
+
+      - name: Enforce benchmark policy
+        run: npm run benchmark
+
+      - name: Build and inspect package tarball
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack --dry-run
+          package_json="$(npm pack --json)"
+          tarball="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(0,"utf8")); if(p.length!==1||!p[0].filename) process.exit(1); process.stdout.write(p[0].filename)' <<<"$package_json")"
+          test -s "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Extract exact changelog notes
+        run: node scripts/extract-release-notes.mjs "${{ github.ref_name }}" release-notes.md
+
+      - name: Create one GitHub release or recover an interrupted upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$TARBALL" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "$TARBALL" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file release-notes.md --verify-tag
+          fi
+
+      - name: Confirm release and attached tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" = "$TAG"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fx "${TARBALL##*/}"
+
+# Intentionally no npm publish step and no npm token. Publishing remains a separate maintainer action.

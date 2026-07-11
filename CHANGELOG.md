@@ -9,6 +9,12 @@
 - Coverage thresholds, offline dry-run regression tests, authentication tests, and
   a reproducible helper benchmark.
 - Release metadata verification and standardized CI validation.
+- Mocked HTTP-boundary coverage for every mutating domain and Pi tool contracts.
+- Bounded GitHub request timeouts, safe read retries, sanitized typed errors, and
+  guarded Link-header pagination beyond 100 results.
+- Dry-run-first repository security control automation and verification tools.
+- Least-privilege tag release automation that attaches a verified tarball without
+  publishing to npm.
 
 ### Changed
 
@@ -17,6 +23,10 @@
 - Repository, milestone, issue, release, and composite dry runs no longer resolve
   credentials or make GitHub requests.
 - The README now provides a verification-first quickstart.
+- API and tool surfaces are organized behind stable resource-domain facades.
+- All mutating dry runs now avoid both credential resolution and HTTP, including PR
+  linking/merge and branch deletion plans.
+- Coverage gates now require at least 80% lines and 70% branches.
 
 ## 0.6.0 - 2026-07-01
 

@@ -24,6 +24,11 @@ if (!releaseHeading.test(changelog)) {
   errors.push(`CHANGELOG.md is missing a dated heading for ${pkg.version}`);
 }
 
+const suppliedTag = process.env.EXPECTED_RELEASE_TAG || process.env.GITHUB_REF_NAME;
+if (suppliedTag && suppliedTag !== `v${pkg.version}`) {
+  errors.push(`release tag ${suppliedTag} does not match package version v${pkg.version}`);
+}
+
 if (process.env.VERIFY_RELEASE_TAG === "1") {
   const expectedTag = `v${pkg.version}`;
   try {
