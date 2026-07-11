@@ -1,0 +1,1175 @@
+import { parseRepo } from "./repo-ref.js";
+export { parseRepo } from "./repo-ref.js";
+import { getGitHubClient as createClient, paginate, paginateMapped, parseNextLink } from "./http.js";
+import type {
+	GitHubBranchProtectionInput,
+	GitHubCreateRepoInput,
+	GitHubDeleteBranchInput,
+	GitHubDeleteCommentInput,
+	GitHubEditCommentInput,
+	GitHubIssueCommentInput,
+	GitHubIssueInput,
+	GitHubLabelInput,
+	GitHubLinkPullRequestIssuesInput,
+	GitHubListPullRequestsInput,
+	GitHubMergePullRequestInput,
+	GitHubMilestoneInput,
+	GitHubPullRequestChecksInput,
+	GitHubPullRequestCommentInput,
+	GitHubReleaseInput,
+	GitHubRequirePrForMainInput,
+	GitHubRepoMetadataInput,
+	GitHubRepoRef,
+	GitHubShipRepoInput,
+	GitHubVerifyInput,
+} from "./types.js";
+
+
+export function normalizeComparableText(value: string): string {
+	return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export async function createOrGetRepo(input: GitHubCreateRepoInput) {
+  if (input.dryRun) {
+    return {
+      created: false,
+      existed: false,
+      dryRun: true,
+      fullName: `${input.owner}/${input.name}`,
+      url: `https://github.com/${input.owner}/${input.name}`,
+      operation: "create_repo",
+    };
+  }
+  const client = await createClient();
+	const repoPath = `/repos/${input.owner}/${input.name}`;
+	try {
+		const existing = await client.request(repoPath);
+		return {
+			created: false,
+			existed: true,
+			dryRun: false,
+			fullName: existing.full_name,
+			url: existing.html_url,
+		};
+	} catch (error) {
+		if (!isNotFound(error)) throw error;
+	}
+
+
+	const viewer = await client.request(`/user`);
+	const createPath =
+		viewer?.login === input.owner
+			? `/user/repos`
+			: `/orgs/${input.owner}/repos`;
+	const created = await client.request(createPath, "POST", {
+		name: input.name,
+		description: input.description,
+		homepage: input.homepage,
+		private: (input.visibility ?? "private") !== "public",
+		auto_init: Boolean(input.initialize),
+	});
+	return {
+		created: true,
+		existed: false,
+		dryRun: false,
+		fullName: created.full_name,
+		url: created.html_url,
+	};
+}
+
+export async function setRepoMetadata(input: GitHubRepoMetadataInput) {
+	const ref = parseRepo(input.repo);
+	if (input.dryRun) {
+		return {
+			updated: false,
+			verified: false,
+			dryRun: true,
+			repo: {
+				fullName: `${ref.owner}/${ref.name}`,
+				description: input.description,
+				homepage: input.homepage,
+				topics: input.topics ?? [],
+			},
+			operation: "set_repo_metadata",
+		};
+	}
+
+	const client = await createClient();
+	await client.request(`/repos/${ref.owner}/${ref.name}`, "PATCH", {
+		description: input.description,
+		homepage: input.homepage,
+		has_issues: input.hasIssues,
+		has_wiki: input.hasWiki,
+	});
+	if (input.topics) {
+		await client.request(`/repos/${ref.owner}/${ref.name}/topics`, "PUT", {
+			names: input.topics,
+		});
+	}
+	const repo = await client.request(`/repos/${ref.owner}/${ref.name}`);
+	return {
+		updated: true,
+		verified: true,
+		dryRun: false,
+		repo: {
+			fullName: repo.full_name,
+			description: repo.description,
+			homepage: repo.homepage,
+			topics: repo.topics ?? input.topics ?? [],
+		},
+	};
+}
+
+export async function protectBranch(input: GitHubBranchProtectionInput) {
+	if (input.dryRun) {
+		return {
+			updated: false,
+			verified: false,
+			dryRun: true,
+			protection: {
+				branch: input.branch,
+				requiredChecks: input.requiredChecks ?? [],
+				requirePullRequest: Boolean(input.requirePullRequest),
+			},
+			operation: "protect_branch",
+		};
+	}
+
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const protection = await client.request(
+		`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(input.branch)}/protection`,
+		"PUT",
+		{
+			required_status_checks: {
+				strict: true,
+				contexts: input.requiredChecks ?? [],
+			},
+			enforce_admins: Boolean(input.applyToAdmins),
+			required_pull_request_reviews: input.requirePullRequest
+				? {
+						dismiss_stale_reviews: false,
+						require_code_owner_reviews: false,
+						required_approving_review_count: Math.max(
+							0,
+							input.requiredApprovals ?? 1,
+						),
+					}
+				: null,
+			restrictions: null,
+			allow_force_pushes: Boolean(input.allowForcePushes),
+			allow_deletions: Boolean(input.allowDeletions),
+			required_conversation_resolution: Boolean(
+				input.requireConversationResolution,
+			),
+			block_creations: false,
+			lock_branch: false,
+			allow_fork_syncing: false,
+		},
+	);
+	return {
+		updated: true,
+		verified: true,
+		dryRun: false,
+		protection,
+	};
+}
+
+export async function requirePrForMain(input: GitHubRequirePrForMainInput) {
+	const branch = input.branch ?? "main";
+	const result = await protectBranch({
+		repo: input.repo,
+		branch,
+		requirePullRequest: true,
+		requiredApprovals: 0,
+		requireConversationResolution: false,
+		allowForcePushes: false,
+		allowDeletions: false,
+		applyToAdmins: false,
+		dryRun: input.dryRun,
+	});
+
+	return {
+		...result,
+		preset: "pr-only-no-review",
+		repo: input.repo,
+		branch,
+	};
+}
+
+export async function createOrUpdateLabels(
+	repo: string,
+	labels: GitHubLabelInput[],
+	dryRun = false,
+) {
+	if (dryRun) {
+		return { created: [], updated: [], dryRun: true, labels };
+	}
+
+	const ref = parseRepo(repo);
+	const client = await createClient();
+	const created: string[] = [];
+	const updated: string[] = [];
+
+	for (const label of labels) {
+		try {
+			await client.request(
+				`/repos/${ref.owner}/${ref.name}/labels/${encodeURIComponent(label.name)}`,
+				"PATCH",
+				{
+					new_name: label.name,
+					color: label.color,
+					description: label.description,
+				},
+			);
+			updated.push(label.name);
+		} catch (error) {
+			if (!isNotFound(error)) throw error;
+			await client.request(
+				`/repos/${ref.owner}/${ref.name}/labels`,
+				"POST",
+				label,
+			);
+			created.push(label.name);
+		}
+	}
+
+	return { created, updated, dryRun: false };
+}
+
+export async function createOrGetMilestone(input: GitHubMilestoneInput) {
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      title: input.title,
+      url: `https://github.com/${input.repo}/milestones`,
+      dryRun: true,
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+	const milestonePage = await paginate<{
+		number: number;
+		title: string;
+		html_url: string;
+	}>(client, `/repos/${ref.owner}/${ref.name}/milestones?state=all&per_page=100`);
+	if (milestonePage.truncated) throw new Error(`Milestone lookup truncated (${milestonePage.reason ?? "guard"}); refusing duplicate-sensitive mutation.`);
+	const milestones = milestonePage.items;
+	const existing = milestones.find(
+		(m) =>
+			normalizeComparableText(m.title) === normalizeComparableText(input.title),
+	);
+	if (existing) {
+		return {
+			created: false,
+			number: existing.number,
+			title: existing.title,
+			url: existing.html_url,
+			dryRun: false,
+		};
+	}
+	const milestone = await client.request(
+		`/repos/${ref.owner}/${ref.name}/milestones`,
+		"POST",
+		{
+			title: input.title,
+			description: input.description,
+		},
+	);
+	return {
+		created: true,
+		number: milestone.number,
+		title: milestone.title,
+		url: milestone.html_url,
+		dryRun: false,
+	};
+}
+
+export async function createOrGetIssue(input: GitHubIssueInput) {
+  if (input.dryRun) {
+    return {
+      created: false,
+      number: undefined,
+      url: `https://github.com/${input.repo}/issues`,
+      dryRun: true,
+      match: "none",
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+	const issuePage = await paginate<{
+		number: number;
+		title: string;
+		body?: string;
+		html_url: string;
+		pull_request?: unknown;
+	}>(client, `/repos/${ref.owner}/${ref.name}/issues?state=all&per_page=100`);
+	if (issuePage.truncated) throw new Error(`Issue lookup truncated (${issuePage.reason ?? "guard"}); refusing duplicate-sensitive mutation.`);
+	const issues = issuePage.items;
+	const existing = findMatchingIssue(
+		issues,
+		input.title,
+		input.body,
+		Boolean(input.matchTitleOnly),
+	);
+	if (existing) {
+		return {
+			created: false,
+			number: existing.number,
+			url: existing.html_url,
+			dryRun: false,
+			match: "existing",
+		};
+	}
+
+
+	const milestoneNumber = input.milestone
+		? await resolveMilestoneNumber(client, ref, input.milestone)
+		: undefined;
+	const issue = await client.request(
+		`/repos/${ref.owner}/${ref.name}/issues`,
+		"POST",
+		{
+			title: input.title,
+			body: input.body,
+			labels: input.labels,
+			milestone: milestoneNumber,
+		},
+	);
+	return {
+		created: true,
+		number: issue.number,
+		url: issue.html_url,
+		dryRun: false,
+		match: "none",
+	};
+}
+
+export async function linkPullRequestIssues(
+	input: GitHubLinkPullRequestIssuesInput,
+) {
+	if (!input.issueNumbers.length)
+		throw new Error("At least one issue number is required.");
+	if (input.dryRun) {
+		return {
+			updated: false,
+			dryRun: true,
+			pullNumber: input.pullNumber,
+			url: `https://github.com/${input.repo}/pull/${input.pullNumber}`,
+			body: addIssueLinksToPrBody("", input.issueNumbers, input.keyword ?? "closes", input.sectionTitle ?? "Issue asociado"),
+			operation: "link_pr_issues",
+		};
+	}
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const pull = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`,
+	)) as {
+		number: number;
+		body?: string | null;
+		html_url: string;
+	};
+
+	if (input.requireExistingIssues ?? true) {
+		for (const issueNumber of input.issueNumbers) {
+			const issue = (await client.request(
+				`/repos/${ref.owner}/${ref.name}/issues/${issueNumber}`,
+			)) as { pull_request?: unknown };
+			if (issue.pull_request)
+				throw new Error(`#${issueNumber} is a pull request, not an issue.`);
+		}
+	}
+
+	const before = pull.body ?? "";
+	const after = addIssueLinksToPrBody(
+		before,
+		input.issueNumbers,
+		input.keyword ?? "closes",
+		input.sectionTitle ?? "Issue asociado",
+	);
+	if (before === after) {
+		return {
+			updated: false,
+			dryRun: Boolean(input.dryRun),
+			pullNumber: pull.number,
+			url: pull.html_url,
+			body: before,
+		};
+	}
+	if (input.dryRun) {
+		return {
+			updated: false,
+			dryRun: true,
+			pullNumber: pull.number,
+			url: pull.html_url,
+			body: after,
+		};
+	}
+
+	const updated = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`,
+		"PATCH",
+		{ body: after },
+	)) as {
+		number: number;
+		body?: string | null;
+		html_url: string;
+	};
+	return {
+		updated: true,
+		dryRun: false,
+		pullNumber: updated.number,
+		url: updated.html_url,
+		body: updated.body ?? "",
+	};
+}
+
+export async function mergePullRequestWhenReady(
+	input: GitHubMergePullRequestInput,
+) {
+	if (input.dryRun) {
+		return {
+			merged: false,
+			dryRun: true,
+			pullNumber: input.pullNumber,
+			url: `https://github.com/${input.repo}/pull/${input.pullNumber}`,
+			operation: "merge_pr_when_ready",
+			preconditions: { requireClean: input.requireClean ?? true, requireChecksSuccess: input.requireChecksSuccess ?? true },
+		};
+	}
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const pull = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`,
+	)) as {
+		number: number;
+		state: string;
+		merged: boolean;
+		mergeable_state?: string;
+		html_url: string;
+		head: { ref: string; sha: string; repo?: { full_name?: string } | null };
+	};
+
+	if (pull.state !== "open") {
+		return {
+			merged: pull.merged,
+			skipped: true,
+			reason: `Pull request is ${pull.state}.`,
+			pullNumber: pull.number,
+			url: pull.html_url,
+		};
+	}
+	if (
+		(input.requireClean ?? true) &&
+		pull.mergeable_state &&
+		!["clean", "unstable", "has_hooks"].includes(pull.mergeable_state)
+	) {
+		throw new Error(
+			`Pull request #${pull.number} is not merge-ready: ${pull.mergeable_state}.`,
+		);
+	}
+
+	const checks =
+		(input.requireChecksSuccess ?? true)
+			? await getCheckRunSummary(client, ref, pull.head.sha)
+			: undefined;
+	if (checks && !checks.ok) {
+		throw new Error(
+			`Required checks are not successful for PR #${pull.number}: ${checks.failed.join(", ") || "pending checks"}.`,
+		);
+	}
+
+	if (input.dryRun) {
+		return {
+			merged: false,
+			dryRun: true,
+			pullNumber: pull.number,
+			url: pull.html_url,
+			mergeableState: pull.mergeable_state,
+			checks,
+		};
+	}
+
+	const result = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}/merge`,
+		"PUT",
+		{
+			merge_method: input.method ?? "squash",
+		},
+	)) as { merged: boolean; message: string; sha?: string };
+
+	let deletedBranch = false;
+	if (
+		result.merged &&
+		input.deleteBranch &&
+		pull.head.repo?.full_name === `${ref.owner}/${ref.name}`
+	) {
+		await client.request(
+			`/repos/${ref.owner}/${ref.name}/git/refs/heads/${encodeURIComponent(pull.head.ref)}`,
+			"DELETE",
+		);
+		deletedBranch = true;
+	}
+
+	return {
+		merged: result.merged,
+		dryRun: false,
+		pullNumber: pull.number,
+		url: pull.html_url,
+		sha: result.sha,
+		message: result.message,
+		deletedBranch,
+		checks,
+	};
+}
+
+export async function listPullRequests(input: GitHubListPullRequestsInput) {
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const params = new URLSearchParams({
+		state: input.state ?? "open",
+		per_page: String(Math.min(Math.max(input.limit ?? 10, 1), 100)),
+	});
+	if (input.base) params.set("base", input.base);
+	if (input.head) params.set("head", input.head);
+	const response = await client.requestWithMeta<Array<{
+		number: number;
+		state: string;
+		title: string;
+		html_url: string;
+		draft?: boolean;
+		merged_at?: string | null;
+		head?: { ref?: string };
+		base?: { ref?: string };
+	}>>(`/repos/${ref.owner}/${ref.name}/pulls?${params.toString()}`);
+	const pulls = response.data;
+	const truncated = Boolean(parseNextLink(response.headers.get("link")));
+	return {
+		repo: input.repo,
+		state: input.state ?? "open",
+		count: pulls.length,
+		truncated,
+		limit: Math.min(Math.max(input.limit ?? 10, 1), 100),
+		pulls: pulls.map((pull) => ({
+			number: pull.number,
+			state: pull.state,
+			title: pull.title,
+			url: pull.html_url,
+			draft: Boolean(pull.draft),
+			merged: Boolean(pull.merged_at),
+			head: pull.head?.ref,
+			base: pull.base?.ref,
+		})),
+	};
+}
+
+export async function getPullRequestChecks(
+	input: GitHubPullRequestChecksInput,
+) {
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const pull = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/pulls/${input.pullNumber}`,
+	)) as {
+		number: number;
+		state: string;
+		merged: boolean;
+		mergeable_state?: string;
+		html_url: string;
+		head: { sha: string; ref: string };
+	};
+	const checks = await getCheckRunSummary(client, ref, pull.head.sha);
+	return {
+		ok: checks.ok,
+		repo: input.repo,
+		pullNumber: pull.number,
+		state: pull.state,
+		merged: pull.merged,
+		mergeableState: pull.mergeable_state,
+		branch: pull.head.ref,
+		sha: pull.head.sha,
+		url: pull.html_url,
+		checks,
+	};
+}
+
+export async function createIssueComment(input: GitHubIssueCommentInput) {
+	return createDiscussionComment({
+		repo: input.repo,
+		number: input.issueNumber,
+		kind: "issue",
+		body: input.body,
+		dryRun: input.dryRun,
+	});
+}
+
+export async function createPullRequestComment(
+	input: GitHubPullRequestCommentInput,
+) {
+	return createDiscussionComment({
+		repo: input.repo,
+		number: input.pullNumber,
+		kind: "pull",
+		body: input.body,
+		dryRun: input.dryRun,
+	});
+}
+
+export async function editComment(input: GitHubEditCommentInput) {
+	const ref = parseRepo(input.repo);
+	if (input.dryRun) {
+		return {
+			updated: false,
+			dryRun: true,
+			commentId: input.commentId,
+			url: `https://github.com/${input.repo}`,
+			operation: "edit_comment",
+		};
+	}
+
+	const client = await createClient();
+	const comment = await client.request(
+		`/repos/${ref.owner}/${ref.name}/issues/comments/${input.commentId}`,
+		"PATCH",
+		{
+			body: input.body,
+		},
+	);
+	return {
+		updated: true,
+		dryRun: false,
+		commentId: input.commentId,
+		url: comment.html_url,
+	};
+}
+
+export async function deleteComment(input: GitHubDeleteCommentInput) {
+	const ref = parseRepo(input.repo);
+	if (input.dryRun) {
+		return {
+			deleted: false,
+			dryRun: true,
+			commentId: input.commentId,
+			operation: "delete_comment",
+		};
+	}
+
+	const client = await createClient();
+	await client.request(
+		`/repos/${ref.owner}/${ref.name}/issues/comments/${input.commentId}`,
+		"DELETE",
+	);
+	return {
+		deleted: true,
+		dryRun: false,
+		commentId: input.commentId,
+	};
+}
+
+export async function createOrUpdateRelease(input: GitHubReleaseInput) {
+  if (input.dryRun) {
+    return {
+      created: false,
+      updated: false,
+      dryRun: true,
+      url: `https://github.com/${input.repo}/releases`,
+      match: "none",
+    };
+  }
+  const ref = parseRepo(input.repo);
+  const client = await createClient();
+	const releasePage = await paginate<{
+		id: number;
+		tag_name: string;
+		name?: string;
+		body?: string;
+		html_url: string;
+	}>(client, `/repos/${ref.owner}/${ref.name}/releases?per_page=100`);
+	if (releasePage.truncated) throw new Error(`Release lookup truncated (${releasePage.reason ?? "guard"}); refusing duplicate-sensitive mutation.`);
+	const releases = releasePage.items;
+	const existing = findMatchingRelease(
+		releases,
+		input.tag,
+		input.title,
+		input.notes,
+		Boolean(input.matchTitleOnly),
+	);
+	if (existing) {
+		if (input.dryRun) {
+			return {
+				created: false,
+				updated: false,
+				dryRun: true,
+				url: existing.html_url,
+				match: "existing",
+			};
+		}
+		const updated = await client.request(
+			`/repos/${ref.owner}/${ref.name}/releases/${existing.id}`,
+			"PATCH",
+			{
+				tag_name: input.tag,
+				target_commitish: input.target,
+				name: input.title,
+				body: input.notes,
+				draft: Boolean(input.draft),
+				prerelease: Boolean(input.prerelease),
+			},
+		);
+		return {
+			created: false,
+			updated: true,
+			dryRun: false,
+			url: updated.html_url,
+			match: "existing",
+		};
+	}
+	const release = await client.request(
+		`/repos/${ref.owner}/${ref.name}/releases`,
+		"POST",
+		{
+			tag_name: input.tag,
+			target_commitish: input.target,
+			name: input.title,
+			body: input.notes,
+			draft: Boolean(input.draft),
+			prerelease: Boolean(input.prerelease),
+		},
+	);
+	return {
+		created: true,
+		updated: false,
+		dryRun: false,
+		url: release.html_url,
+		match: "none",
+	};
+}
+
+export async function deleteBranch(input: GitHubDeleteBranchInput) {
+	if (input.dryRun) {
+		const defaultBranch = "main";
+		const baseBranch = input.baseBranch ?? defaultBranch;
+		if (input.branch === defaultBranch && !input.allowDefaultBranch)
+			throw new Error(`Refusing to delete default branch ${defaultBranch}. Set allowDefaultBranch=true to override.`);
+		if (input.branch === baseBranch)
+			throw new Error(`Refusing to delete comparison base branch ${baseBranch}. Choose another baseBranch or target branch.`);
+		return {
+			deleted: false, dryRun: true, repo: input.repo, branch: input.branch, defaultBranch, baseBranch,
+			operation: "delete_branch", url: `https://github.com/${input.repo}/tree/${encodeURIComponent(input.branch)}`,
+		};
+	}
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const repo = (await client.request(`/repos/${ref.owner}/${ref.name}`)) as {
+		default_branch?: string;
+		html_url?: string;
+	};
+	const defaultBranch = repo.default_branch || "main";
+	const baseBranch = input.baseBranch || defaultBranch;
+
+	if (input.branch === defaultBranch && !input.allowDefaultBranch) {
+		throw new Error(
+			`Refusing to delete default branch ${defaultBranch}. Set allowDefaultBranch=true to override.`,
+		);
+	}
+	if (input.branch === baseBranch) {
+		throw new Error(
+			`Refusing to delete comparison base branch ${baseBranch}. Choose another baseBranch or target branch.`,
+		);
+	}
+
+	const branchInfo = (await client.request(
+		`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(input.branch)}`,
+	)) as {
+		name: string;
+		commit?: { sha?: string };
+		protected?: boolean;
+	};
+
+	let compareSummary:
+		| {
+				status: string;
+				safeToDelete: boolean;
+				aheadBy?: number;
+				behindBy?: number;
+				totalCommits?: number;
+		  }
+		| undefined;
+
+	if (input.requireMerged ?? true) {
+		const compare = (await client.request(
+			`/repos/${ref.owner}/${ref.name}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(input.branch)}`,
+		)) as {
+			status?: string;
+			ahead_by?: number;
+			behind_by?: number;
+			total_commits?: number;
+		};
+		compareSummary = summarizeBranchComparison(compare);
+		if (!compareSummary.safeToDelete) {
+			throw new Error(
+				`Branch ${input.branch} still has unique commits relative to ${baseBranch} (${compareSummary.status}). Refusing delete.`,
+			);
+		}
+	}
+
+	if (input.dryRun) {
+		return {
+			deleted: false,
+			dryRun: true,
+			repo: input.repo,
+			branch: input.branch,
+			defaultBranch,
+			baseBranch,
+			protected: Boolean(branchInfo.protected),
+			branchSha: branchInfo.commit?.sha,
+			compare: compareSummary,
+			operation: "delete_branch",
+			url: `${repo.html_url || `https://github.com/${input.repo}`}/tree/${encodeURIComponent(input.branch)}`,
+		};
+	}
+
+	await client.request(
+		`/repos/${ref.owner}/${ref.name}/git/refs/heads/${encodeURIComponent(input.branch)}`,
+		"DELETE",
+	);
+	return {
+		deleted: true,
+		dryRun: false,
+		repo: input.repo,
+		branch: input.branch,
+		defaultBranch,
+		baseBranch,
+		protected: Boolean(branchInfo.protected),
+		branchSha: branchInfo.commit?.sha,
+		compare: compareSummary,
+	};
+}
+
+export async function verifyRepoState(input: GitHubVerifyInput) {
+	const ref = parseRepo(input.repo);
+	const client = await createClient();
+	const results: Record<string, boolean> = {};
+	const details: Record<string, unknown> = {};
+
+	for (const check of input.checks) {
+		if (check === "metadata") {
+			const repo = await client.request(`/repos/${ref.owner}/${ref.name}`);
+			results[check] = Boolean(repo?.full_name);
+			details[check] = {
+				fullName: repo?.full_name,
+				visibility: repo?.visibility,
+				hasIssues: repo?.has_issues,
+				hasWiki: repo?.has_wiki,
+				topics: repo?.topics ?? [],
+			};
+		} else if (check === "branch_protection") {
+			const branch = input.branch || "main";
+			const protection = await client.request(
+				`/repos/${ref.owner}/${ref.name}/branches/${encodeURIComponent(branch)}/protection`,
+			);
+			results[check] = Boolean(protection?.url);
+			details[check] = {
+				branch,
+				requiredChecks: protection?.required_status_checks?.contexts ?? [],
+				enforceAdmins: protection?.enforce_admins?.enabled ?? false,
+				conversationResolution:
+					protection?.required_conversation_resolution?.enabled ?? false,
+			};
+		} else if (check === "labels") {
+			const labels = await paginate<any>(client, `/repos/${ref.owner}/${ref.name}/labels?per_page=100`);
+			results[check] = !labels.truncated;
+			details[check] = { count: labels.items.length, truncated: labels.truncated };
+		} else if (check === "milestones") {
+			const milestones = await paginate<any>(client, `/repos/${ref.owner}/${ref.name}/milestones?state=all&per_page=100`);
+			results[check] = !milestones.truncated;
+			details[check] = { count: milestones.items.length, truncated: milestones.truncated };
+		} else if (check === "issues") {
+			const issues = await paginate<any>(client, `/repos/${ref.owner}/${ref.name}/issues?state=all&per_page=100`);
+			const filtered = issues.items.filter((issue: any) => !issue.pull_request);
+			results[check] = !issues.truncated;
+			details[check] = { count: filtered.length, truncated: issues.truncated };
+		} else if (check === "releases") {
+			const releases = await paginate<any>(client, `/repos/${ref.owner}/${ref.name}/releases?per_page=100`);
+			const tagMatched = input.releaseTag
+				? releases.items.some((release: any) => release.tag_name === input.releaseTag)
+				: true;
+			results[check] = !releases.truncated && tagMatched;
+			details[check] = {
+				count: releases.items.length,
+				releaseTag: input.releaseTag,
+				tagMatched,
+				truncated: releases.truncated,
+			};
+		}
+	}
+
+	return { ok: Object.values(results).every(Boolean), results, details };
+}
+
+export async function shipRepo(input: GitHubShipRepoInput) {
+	const dryRun = Boolean(input.dryRun || input.repo.dryRun);
+	const repoResult = await createOrGetRepo({ ...input.repo, dryRun });
+	const repo = `${input.repo.owner}/${input.repo.name}`;
+
+	const metadata = input.metadata
+		? await setRepoMetadata({ repo, ...input.metadata, dryRun })
+		: undefined;
+	const labels = input.labels?.length
+		? await createOrUpdateLabels(repo, input.labels, dryRun)
+		: undefined;
+	const milestones = input.milestones?.length
+		? await Promise.all(
+				input.milestones.map((milestone) =>
+					createOrGetMilestone({ repo, ...milestone, dryRun }),
+				),
+			)
+		: [];
+	const issues = input.issues?.length
+		? await Promise.all(
+				input.issues.map((issue) =>
+					createOrGetIssue({ repo, ...issue, dryRun }),
+				),
+			)
+		: [];
+	const branchProtection = input.branchProtection
+		? await protectBranch({ repo, ...input.branchProtection, dryRun })
+		: undefined;
+	const release = input.release
+		? await createOrUpdateRelease({ repo, ...input.release, dryRun })
+		: undefined;
+	const verify = input.verify
+		? dryRun
+			? { ok: true, dryRun: true, checks: input.verify.checks }
+			: await verifyRepoState({ repo, ...input.verify })
+		: undefined;
+
+	return {
+		ok: dryRun ? true : Boolean(repoResult && (verify?.ok ?? true)),
+		dryRun,
+		repo,
+		repoResult,
+		metadata,
+		labels,
+		milestones,
+		issues,
+		branchProtection,
+		release,
+		verify,
+	};
+}
+
+export function findMatchingIssue<
+	T extends { title: string; body?: string; pull_request?: unknown },
+>(
+	issues: T[],
+	title: string,
+	body: string,
+	matchTitleOnly: boolean,
+): T | undefined {
+	const normalizedTitle = normalizeComparableText(title);
+	const normalizedBody = normalizeComparableText(body);
+	return issues.find((issue) => {
+		if (issue.pull_request) return false;
+		if (normalizeComparableText(issue.title) !== normalizedTitle) return false;
+		return (
+			matchTitleOnly ||
+			normalizeComparableText(issue.body ?? "") === normalizedBody
+		);
+	});
+}
+
+export function findMatchingRelease<
+	T extends { tag_name: string; name?: string; body?: string },
+>(
+	releases: T[],
+	tag: string,
+	title: string,
+	notes: string,
+	matchTitleOnly: boolean,
+): T | undefined {
+	const normalizedTitle = normalizeComparableText(title);
+	const normalizedNotes = normalizeComparableText(notes);
+	return releases.find((release) => {
+		if (release.tag_name === tag) return true;
+		if (normalizeComparableText(release.name ?? "") !== normalizedTitle)
+			return false;
+		return (
+			matchTitleOnly ||
+			normalizeComparableText(release.body ?? "") === normalizedNotes
+		);
+	});
+}
+
+export function addIssueLinksToPrBody(
+	body: string,
+	issueNumbers: number[],
+	keyword: "closes" | "refs",
+	sectionTitle = "Issue asociado",
+): string {
+	const uniqueIssueNumbers = [...new Set(issueNumbers)];
+	const missing = uniqueIssueNumbers.filter(
+		(issueNumber) =>
+			!new RegExp(
+				`(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\\s+#${issueNumber}\\b`,
+				"i",
+			).test(body),
+	);
+	if (!missing.length) return body;
+
+	const normalizedKeyword = keyword === "closes" ? "Closes" : "Refs";
+	const lines = [
+		`## ${sectionTitle}`,
+		"",
+		...missing.map((issueNumber) => `${normalizedKeyword} #${issueNumber}`),
+	];
+	const trimmed = body.trimEnd();
+	return trimmed
+		? `${trimmed}\n\n${lines.join("\n")}\n`
+		: `${lines.join("\n")}\n`;
+}
+
+export function summarizeBranchComparison(compare: {
+	status?: string;
+	ahead_by?: number;
+	behind_by?: number;
+	total_commits?: number;
+}) {
+	const status = compare.status || "unknown";
+	const safeToDelete = status === "behind" || status === "identical";
+	return {
+		status,
+		safeToDelete,
+		aheadBy: compare.ahead_by,
+		behindBy: compare.behind_by,
+		totalCommits: compare.total_commits,
+	};
+}
+
+async function getCheckRunSummary(
+	client: Awaited<ReturnType<typeof createClient>>,
+	ref: GitHubRepoRef,
+	sha: string,
+) {
+	const checkRunResult = await paginateMapped<
+		{ check_runs?: Array<{ name: string; status: string; conclusion: string | null }> },
+		{ name: string; status: string; conclusion: string | null }
+	>(
+		client,
+		`/repos/${ref.owner}/${ref.name}/commits/${sha}/check-runs?per_page=100`,
+		(page) => page.check_runs ?? [],
+	);
+	const statusResult = await paginate<{ context: string; state: string }>(
+		client,
+		`/repos/${ref.owner}/${ref.name}/commits/${sha}/statuses?per_page=100`,
+	);
+	const checkRuns = checkRunResult.items;
+	const statuses = statusResult.items;
+	const combinedState = statuses.length === 0
+		? undefined
+		: statuses.every((status) => status.state === "success")
+			? "success"
+			: statuses.some((status) => ["failure", "error"].includes(status.state))
+				? "failure"
+				: "pending";
+	const failedChecks = checkRuns
+		.filter(
+			(check) =>
+				check.status !== "completed" ||
+				!["success", "skipped", "neutral"].includes(check.conclusion ?? ""),
+		)
+		.map(
+			(check) =>
+				`${check.name}:${check.status}/${check.conclusion ?? "pending"}`,
+		);
+	const failedStatuses = statuses
+		.filter((status) => status.state !== "success")
+		.map((status) => `${status.context}:${status.state}`);
+	const failed = [
+		...failedChecks,
+		...(combinedState && combinedState !== "success"
+			? [`combined-status:${combinedState}`]
+			: []),
+		...failedStatuses,
+		...(checkRunResult.truncated || statusResult.truncated ? ["pagination:truncated"] : []),
+	];
+
+	return {
+		ok: failed.length === 0,
+		total: checkRuns.length + statuses.length,
+		checkRuns: checkRuns.length,
+		statuses: statuses.length,
+		combinedStatus: combinedState,
+		truncated: checkRunResult.truncated || statusResult.truncated,
+		failed,
+	};
+}
+
+async function resolveMilestoneNumber(
+	client: Awaited<ReturnType<typeof createClient>>,
+	ref: GitHubRepoRef,
+	title: string,
+) {
+	const milestonePage = await paginate<{
+		number: number;
+		title: string;
+	}>(client, `/repos/${ref.owner}/${ref.name}/milestones?state=all&per_page=100`);
+	if (milestonePage.truncated) throw new Error(`Milestone lookup truncated (${milestonePage.reason ?? "guard"}); refusing incomplete resolution.`);
+	const milestones = milestonePage.items;
+	const match = milestones.find(
+		(m) => normalizeComparableText(m.title) === normalizeComparableText(title),
+	);
+	if (!match) {
+		throw new Error(`Milestone not found: ${title}`);
+	}
+	return match.number;
+}
+
+async function createDiscussionComment(input: {
+	repo: string;
+	number: number;
+	kind: "issue" | "pull";
+	body: string;
+	dryRun?: boolean;
+}) {
+	const ref = parseRepo(input.repo);
+	if (input.dryRun) {
+		return {
+			created: false,
+			dryRun: true,
+			issueNumber: input.kind === "issue" ? input.number : undefined,
+			pullNumber: input.kind === "pull" ? input.number : undefined,
+			url: `https://github.com/${input.repo}/${input.kind === "issue" ? "issues" : "pull"}/${input.number}`,
+			commentId: undefined,
+			operation: input.kind === "issue" ? "comment_issue" : "comment_pr",
+		};
+	}
+
+	const client = await createClient();
+	const comment = await client.request(
+		`/repos/${ref.owner}/${ref.name}/issues/${input.number}/comments`,
+		"POST",
+		{
+			body: input.body,
+		},
+	);
+	return {
+		created: true,
+		dryRun: false,
+		issueNumber: input.kind === "issue" ? input.number : undefined,
+		pullNumber: input.kind === "pull" ? input.number : undefined,
+		url: comment.html_url,
+		commentId: comment.id,
+	};
+}
+
+
+function isNotFound(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"status" in error &&
+		(error as { status?: number }).status === 404
+	);
+}

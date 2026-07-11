@@ -12,6 +12,9 @@ The extension has no configuration file and persists no state. Inputs are explic
 
 Use one source at a time so credential selection is obvious. Never commit `.env` files or token output. GitHub API version and headers are owned by the shared request layer and are not user-overridable.
 
+
+Internal requests time out after 10 seconds by default. The implementation clamps configured test/runtime overrides to 1-120,000 ms. GET/HEAD requests retry at most twice for transient network failures, HTTP 429, rate-limit exhaustion, and selected 502/503/504 responses using bounded exponential backoff and jitter. POST, PATCH, PUT, and DELETE are never automatically retried, so a mutation cannot be duplicated by the transport policy.
+
 ## First diagnostics
 
 1. Run `github_get_auth` with the target `owner/repo` when one exists.
@@ -34,6 +37,9 @@ The package intentionally emits structured results rather than application logs 
 | Merge helper reports pending/failed checks | PR preconditions are not satisfied | Inspect `github_get_pr_checks`; fix or wait for checks, then retry |
 | Branch deletion is refused | Default/base branch or unique commits detected | Choose the correct branch/base; merge or preserve unique commits before retrying |
 | Partial composite workflow | Earlier API calls succeeded before a later call failed | Run `github_verify_repo_state`, compare actual state, then rerun idempotent steps individually |
+| Request timed out | GitHub did not answer within the bounded timeout | Verify GitHub Status and network access, then repeat a read or run a fresh dry run before retrying a mutation |
+| Rate limit exhausted | Structured error has `rateLimit.remaining: 0` | Wait until `rateLimit.resetAt` or the bounded `retryAfterSeconds` signal; do not rotate credentials merely to evade policy |
+| Pagination reports `truncated` | Maximum pages/items or a repeated Link target stopped traversal | Narrow the query or inspect the truncation reason; correctness-sensitive mutations refuse to treat truncated verification as complete |
 
 ## Debugging and observability boundaries
 
@@ -42,5 +48,8 @@ The package intentionally emits structured results rather than application logs 
 - Use `dryRun` output as the planned-change record and verification output as the actual-state record.
 - GitHub API latency, rate limits, and service health are external. Check GitHub Status before changing code in response to transient failures.
 - There is no background worker or health endpoint. A successful `github_get_auth` plus a read-only repository operation is the current health check.
+
+
+`GitHubApiError` exposes `status`, `requestId`, `documentationUrl`, `rateLimit` (`limit`, `remaining`, `resetAt`, `retryAfterSeconds`), `retryable`, `method`, and a sanitized `path`. Response text is reduced to GitHub's message/documentation fields, authorization-shaped values are redacted, and surfaced text is capped. The package never logs errors automatically; callers decide where sanitized structured details may be recorded.
 
 Escalate repeated or ambiguous failures with the tool name, sanitized status/message, target resource type, and exact recovery steps already attempted.
