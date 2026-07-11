@@ -2,25 +2,37 @@
 
 ## 0.6.0 - 2026-07-01
 
-### Added
+### Added in 0.6.0
+
 - `github_list_prs` to list pull requests similarly to `gh pr list --repo ...`.
+- `github_require_pr_for_main` shortcut for PR-only `main` protection without
+  required reviews.
 
 ## 0.5.0 - 2026-06-30
 
-### Added
-- `github_delete_branch` to safely delete branches with merged-only checks against the default or provided base branch.
-- `github_get_pr_checks` to inspect PR check-run/status state similarly to `gh pr checks`.
+### Added in 0.5.0
+
+- `github_delete_branch` to safely delete branches with merged-only checks
+  against the default or provided base branch.
+- `github_get_pr_checks` to inspect PR check-run/status state similarly to
+  `gh pr checks`.
+
 ## 0.4.0 - 2026-06-30
 
-### Added
-- `github_link_pr_issues` to add existing issue references to PR bodies with duplicate detection.
-- `github_merge_pr_when_ready` to merge PRs only after clean/check-success criteria are satisfied.
+### Added in 0.4.0
+
+- `github_link_pr_issues` to add existing issue references to PR bodies with
+  duplicate detection.
+- `github_merge_pr_when_ready` to merge PRs only after clean/check-success
+  criteria are satisfied.
 
 ## 0.3.0 - 2026-06-30
 
-Expanded the package into GitHub conversation/comment operations and documented the next broader roadmap.
+Expanded the package into GitHub conversation/comment operations and documented
+the next broader roadmap.
 
-### Added
+### Added in 0.3.0
+
 - `github_comment_issue`
 - `github_comment_pr`
 - `github_edit_comment`
@@ -29,7 +41,8 @@ Expanded the package into GitHub conversation/comment operations and documented 
 - dry-run coverage for new comment operations
 - roadmap issue creation for the next package phases
 
-### Improved
+### Improved in 0.3.0
+
 - README examples now include comment lifecycle usage
 - test coverage expanded for the new comment helpers
 
@@ -37,14 +50,16 @@ Expanded the package into GitHub conversation/comment operations and documented 
 
 Expanded release covering the initial roadmap issues.
 
-### Added
+### Added in 0.2.0
+
 - `github_create_repo`
 - `github_ship_repo`
 - dry-run support across mutating tools
 - richer auth diagnostics with optional repo access inspection
 - richer verification detail output
 
-### Improved
+### Improved in 0.2.0
+
 - issue duplicate detection now uses normalized title/body matching
 - release duplicate detection now uses tag or normalized title/body matching
 - README updated to reflect the broader workflow surface
@@ -53,8 +68,10 @@ Expanded release covering the initial roadmap issues.
 
 Initial release.
 
-### Added
+### Added in 0.1.0
+
 - Pi-native GitHub admin package scaffold
 - GitHub auth inspection via environment or `gh auth token`
-- tools for repo metadata, branch protection, labels, milestones, issues, releases, and verification
+- tools for repo metadata, branch protection, labels, milestones, issues,
+  releases, and verification
 - basic tests and CI for typecheck + test

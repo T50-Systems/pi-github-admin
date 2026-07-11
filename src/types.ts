@@ -1,180 +1,193 @@
 export interface GitHubAuthInfo {
-  authenticated: boolean;
-  login?: string;
-  scopes?: string[];
-  source?: "env" | "gh";
-  message?: string;
-  suggestions?: string[];
-  repoAccess?: {
-    repo: string;
-    exists: boolean;
-    permissions?: {
-      admin?: boolean;
-      maintain?: boolean;
-      push?: boolean;
-      triage?: boolean;
-      pull?: boolean;
-    };
-  };
+	authenticated: boolean;
+	login?: string;
+	scopes?: string[];
+	source?: "env" | "gh";
+	message?: string;
+	suggestions?: string[];
+	repoAccess?: {
+		repo: string;
+		exists: boolean;
+		permissions?: {
+			admin?: boolean;
+			maintain?: boolean;
+			push?: boolean;
+			triage?: boolean;
+			pull?: boolean;
+		};
+	};
 }
 
 export interface GitHubRepoRef {
-  owner: string;
-  name: string;
+	owner: string;
+	name: string;
 }
 
 export interface GitHubCreateRepoInput {
-  owner: string;
-  name: string;
-  description?: string;
-  visibility?: "public" | "private";
-  homepage?: string;
-  initialize?: boolean;
-  dryRun?: boolean;
+	owner: string;
+	name: string;
+	description?: string;
+	visibility?: "public" | "private";
+	homepage?: string;
+	initialize?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubRepoMetadataInput {
-  repo: string;
-  description?: string;
-  homepage?: string;
-  topics?: string[];
-  hasIssues?: boolean;
-  hasWiki?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	description?: string;
+	homepage?: string;
+	topics?: string[];
+	hasIssues?: boolean;
+	hasWiki?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubBranchProtectionInput {
-  repo: string;
-  branch: string;
-  requiredChecks?: string[];
-  requirePullRequest?: boolean;
-  requiredApprovals?: number;
-  requireConversationResolution?: boolean;
-  allowForcePushes?: boolean;
-  allowDeletions?: boolean;
-  applyToAdmins?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	branch: string;
+	requiredChecks?: string[];
+	requirePullRequest?: boolean;
+	requiredApprovals?: number;
+	requireConversationResolution?: boolean;
+	allowForcePushes?: boolean;
+	allowDeletions?: boolean;
+	applyToAdmins?: boolean;
+	dryRun?: boolean;
+}
+
+export interface GitHubRequirePrForMainInput {
+	repo: string;
+	branch?: string;
+	dryRun?: boolean;
 }
 
 export interface GitHubLabelInput {
-  name: string;
-  color: string;
-  description?: string;
+	name: string;
+	color: string;
+	description?: string;
 }
 
 export interface GitHubMilestoneInput {
-  repo: string;
-  title: string;
-  description?: string;
-  dryRun?: boolean;
+	repo: string;
+	title: string;
+	description?: string;
+	dryRun?: boolean;
 }
 
 export interface GitHubIssueInput {
-  repo: string;
-  title: string;
-  body: string;
-  labels?: string[];
-  milestone?: string;
-  matchTitleOnly?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	title: string;
+	body: string;
+	labels?: string[];
+	milestone?: string;
+	matchTitleOnly?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubLinkPullRequestIssuesInput {
-  repo: string;
-  pullNumber: number;
-  issueNumbers: number[];
-  keyword?: "closes" | "refs";
-  sectionTitle?: string;
-  requireExistingIssues?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	pullNumber: number;
+	issueNumbers: number[];
+	keyword?: "closes" | "refs";
+	sectionTitle?: string;
+	requireExistingIssues?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubIssueCommentInput {
-  repo: string;
-  issueNumber: number;
-  body: string;
-  dryRun?: boolean;
+	repo: string;
+	issueNumber: number;
+	body: string;
+	dryRun?: boolean;
 }
 
 export interface GitHubPullRequestCommentInput {
-  repo: string;
-  pullNumber: number;
-  body: string;
-  dryRun?: boolean;
+	repo: string;
+	pullNumber: number;
+	body: string;
+	dryRun?: boolean;
 }
 
 export interface GitHubEditCommentInput {
-  repo: string;
-  commentId: number;
-  body: string;
-  dryRun?: boolean;
+	repo: string;
+	commentId: number;
+	body: string;
+	dryRun?: boolean;
 }
 
 export interface GitHubDeleteCommentInput {
-  repo: string;
-  commentId: number;
-  dryRun?: boolean;
+	repo: string;
+	commentId: number;
+	dryRun?: boolean;
 }
 
 export interface GitHubReleaseInput {
-  repo: string;
-  tag: string;
-  title: string;
-  target?: string;
-  notes: string;
-  draft?: boolean;
-  prerelease?: boolean;
-  matchTitleOnly?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	tag: string;
+	title: string;
+	target?: string;
+	notes: string;
+	draft?: boolean;
+	prerelease?: boolean;
+	matchTitleOnly?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubMergePullRequestInput {
-  repo: string;
-  pullNumber: number;
-  method?: "merge" | "squash" | "rebase";
-  deleteBranch?: boolean;
-  requireClean?: boolean;
-  requireChecksSuccess?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	pullNumber: number;
+	method?: "merge" | "squash" | "rebase";
+	deleteBranch?: boolean;
+	requireClean?: boolean;
+	requireChecksSuccess?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubPullRequestChecksInput {
-  repo: string;
-  pullNumber: number;
+	repo: string;
+	pullNumber: number;
 }
 
 export interface GitHubListPullRequestsInput {
-  repo: string;
-  state?: "open" | "closed" | "all";
-  base?: string;
-  head?: string;
-  limit?: number;
+	repo: string;
+	state?: "open" | "closed" | "all";
+	base?: string;
+	head?: string;
+	limit?: number;
 }
 
 export interface GitHubDeleteBranchInput {
-  repo: string;
-  branch: string;
-  baseBranch?: string;
-  requireMerged?: boolean;
-  allowDefaultBranch?: boolean;
-  dryRun?: boolean;
+	repo: string;
+	branch: string;
+	baseBranch?: string;
+	requireMerged?: boolean;
+	allowDefaultBranch?: boolean;
+	dryRun?: boolean;
 }
 
 export interface GitHubVerifyInput {
-  repo: string;
-  checks: Array<"metadata" | "branch_protection" | "labels" | "milestones" | "issues" | "releases">;
-  branch?: string;
-  releaseTag?: string;
+	repo: string;
+	checks: Array<
+		| "metadata"
+		| "branch_protection"
+		| "labels"
+		| "milestones"
+		| "issues"
+		| "releases"
+	>;
+	branch?: string;
+	releaseTag?: string;
 }
 
 export interface GitHubShipRepoInput {
-  repo: GitHubCreateRepoInput;
-  metadata?: Omit<GitHubRepoMetadataInput, "repo">;
-  labels?: GitHubLabelInput[];
-  milestones?: Array<Omit<GitHubMilestoneInput, "repo">>;
-  issues?: Array<Omit<GitHubIssueInput, "repo">>;
-  branchProtection?: Omit<GitHubBranchProtectionInput, "repo">;
-  release?: Omit<GitHubReleaseInput, "repo">;
-  verify?: Omit<GitHubVerifyInput, "repo">;
-  dryRun?: boolean;
+	repo: GitHubCreateRepoInput;
+	metadata?: Omit<GitHubRepoMetadataInput, "repo">;
+	labels?: GitHubLabelInput[];
+	milestones?: Array<Omit<GitHubMilestoneInput, "repo">>;
+	issues?: Array<Omit<GitHubIssueInput, "repo">>;
+	branchProtection?: Omit<GitHubBranchProtectionInput, "repo">;
+	release?: Omit<GitHubReleaseInput, "repo">;
+	verify?: Omit<GitHubVerifyInput, "repo">;
+	dryRun?: boolean;
 }
