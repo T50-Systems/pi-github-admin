@@ -15,6 +15,8 @@
 - Dry-run-first repository security control automation and verification tools.
 - Least-privilege tag release automation that attaches a verified tarball without
   publishing to npm.
+- Lockfile-pinned offline GitHub Actions schema/semantic validation, immutable action
+  policy, negative fixtures, and validator provenance/update guidance.
 
 ### Changed
 

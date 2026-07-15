@@ -245,6 +245,7 @@ github_delete_comment({
 - [Configuration, diagnostics, and recovery](docs/OPERATIONS.md)
 - [Examples and integration recipes](docs/INTEGRATIONS.md)
 - [Performance baseline](docs/PERFORMANCE.md)
+- [Offline GitHub Actions validation and pin review](docs/WORKFLOW_VALIDATION.md)
 - [Release and changelog workflow](docs/RELEASING.md)
 - [Roadmap](docs/ROADMAP.md) and [backlog governance](docs/BACKLOG.md)
 
@@ -258,6 +259,7 @@ npm audit --audit-level=high
 npm pack --dry-run
 ```
 
-`npm run verify` runs type checking, tests with coverage thresholds, and release
-metadata validation. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing the
-tool surface.
+`npm run verify` starts with the same offline workflow schema/semantic validation
+available as `npm run verify:workflows`, then runs type checking, tests with coverage
+thresholds, and release metadata validation. See [CONTRIBUTING.md](CONTRIBUTING.md)
+before changing the tool surface.

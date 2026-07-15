@@ -1,0 +1,7 @@
+name: Mutable action workflow fixture
+on: push
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5 # v5.0.1

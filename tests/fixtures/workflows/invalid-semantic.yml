@@ -1,0 +1,6 @@
+name: Invalid semantic workflow fixture
+on: push
+jobs:
+  validate:
+    steps:
+      - run: npm test
