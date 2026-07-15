@@ -91,9 +91,9 @@ npm pack --dry-run
 
 `npm run verify` runs type checking, the Vitest suite with committed coverage
 thresholds, and release/changelog metadata verification. CI runs the same checks on
-pull requests and pushes to `main`. `npm run benchmark` runs the helper microbenchmarks
-and the deterministic guarded-pagination measurement but does not enforce a shared-runner
-budget. CI uploads the nonblocking hosted pagination baseline described in
-[`PAGINATION_BENCHMARK.md`](PAGINATION_BENCHMARK.md).
+pull requests and pushes to `main`. `npm run benchmark` runs the helper microbenchmarks,
+the deterministic guarded-pagination measurement, and the reviewed regression budget.
+CI enforces the same pagination budget as a required job and uploads the measurement
+artifact described in [`PAGINATION_BENCHMARK.md`](PAGINATION_BENCHMARK.md).
 There is no separate compile or bundle artifact: Pi loads the TypeScript extension
 entry point declared in `package.json`.
