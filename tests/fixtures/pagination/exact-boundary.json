@@ -1,0 +1,9 @@
+{
+  "name": "exact-boundary-not-truncated",
+  "startPath": "/items?page=1",
+  "pages": [
+    { "path": "/items?page=1", "items": [1, 2] }
+  ],
+  "options": { "maxItems": 2 },
+  "expected": { "items": [1, 2], "pages": 1, "truncated": false }
+}

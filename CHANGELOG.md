@@ -20,6 +20,9 @@
 - Additive per-control security capability/enabled results with sanitized recovery,
   deterministic enabled/disabled/omitted/403/404/partial fixtures, and preserved legacy
   `state` booleans/`ok` semantics.
+- Exported pagination hard-guard maximums, deterministic 100-page/10,000-item
+  measurement with guard fixtures and machine-readable latency/memory evidence, and a
+  nonblocking hosted baseline artifact job.
 
 ### Changed
 
