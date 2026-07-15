@@ -1,0 +1,6 @@
+{
+  "name": "forbidden-403",
+  "repository": { "status": 403, "message": "administrator-only diagnostic detail" },
+  "privateVulnerabilityReporting": { "status": 403, "message": "private-reporting diagnostic detail" },
+  "dependabotSecurityUpdates": { "status": 403, "message": "automated-fixes diagnostic detail" }
+}

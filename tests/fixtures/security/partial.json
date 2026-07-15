@@ -1,0 +1,15 @@
+{
+  "name": "partial",
+  "repository": {
+    "status": 200,
+    "body": {
+      "security_and_analysis": {
+        "secret_scanning": { "status": "enabled" },
+        "secret_scanning_push_protection": { "status": "disabled" },
+        "secret_scanning_validity_checks": { "status": "enabled" }
+      }
+    }
+  },
+  "privateVulnerabilityReporting": { "status": 403, "message": "private-reporting diagnostic detail" },
+  "dependabotSecurityUpdates": { "status": 200, "body": { "enabled": false } }
+}

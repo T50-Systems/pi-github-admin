@@ -1,0 +1,16 @@
+{
+  "name": "disabled",
+  "repository": {
+    "status": 200,
+    "body": {
+      "security_and_analysis": {
+        "secret_scanning": { "status": "disabled" },
+        "secret_scanning_push_protection": { "status": "disabled" },
+        "secret_scanning_non_provider_patterns": { "status": "disabled" },
+        "secret_scanning_validity_checks": { "status": "disabled" }
+      }
+    }
+  },
+  "privateVulnerabilityReporting": { "status": 200, "body": { "enabled": false } },
+  "dependabotSecurityUpdates": { "status": 200, "body": { "enabled": false } }
+}

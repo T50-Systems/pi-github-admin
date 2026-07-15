@@ -40,6 +40,10 @@ The package intentionally emits structured results rather than application logs 
 | Request timed out | GitHub did not answer within the bounded timeout | Verify GitHub Status and network access, then repeat a read or run a fresh dry run before retrying a mutation |
 | Rate limit exhausted | Structured error has `rateLimit.remaining: 0` | Wait until `rateLimit.resetAt` or the bounded `retryAfterSeconds` signal; do not rotate credentials merely to evade policy |
 | Pagination reports `truncated` | Maximum pages/items or a repeated Link target stopped traversal | Narrow the query or inspect the truncation reason; correctness-sensitive mutations refuse to treat truncated verification as complete |
+| Security control is `disabled` | GitHub explicitly reported an available control as off | Review repository policy, then use `github_configure_security` only if the control is required |
+| Security control is `unavailable` | The repository response omitted the control | Review plan, organization policy, and caller visibility; omission is not proof about every plan or policy |
+| Security control is `forbidden` | GitHub returned 403 for that read | Grant only the minimum repository administration or security-manager permission needed, then retry |
+| Security control is `unknown` after 404 | Repository/control was not found or GitHub masked an authorization failure | Confirm `owner/name` and caller access; do not infer unsupported or disabled state from 404 |
 
 ## Debugging and observability boundaries
 
@@ -51,5 +55,9 @@ The package intentionally emits structured results rather than application logs 
 
 
 `GitHubApiError` exposes `status`, `requestId`, `documentationUrl`, `rateLimit` (`limit`, `remaining`, `resetAt`, `retryAfterSeconds`), `retryable`, `method`, and a sanitized `path`. Response text is reduced to GitHub's message/documentation fields, authorization-shaped values are redacted, and surfaced text is capped. The package never logs errors automatically; callers decide where sanitized structured details may be recorded.
+
+Security verification exposes only closed reason/status values, numeric 403/404 status,
+and static recovery text for expected capability failures. It does not copy raw GitHub
+failure messages into the result. See [the capability-result decision](SECURITY_CAPABILITY_RESULTS.md).
 
 Escalate repeated or ambiguous failures with the tool name, sanitized status/message, target resource type, and exact recovery steps already attempted.

@@ -21,8 +21,13 @@ export function registerSecurityTools(pi: ExtensionAPI): void {
 		}, { additionalProperties: false }),
 		async execute(_id, params) {
 			const result = await configureRepositorySecurity(params);
+			const text = result.dryRun
+				? `Dry run: would configure security for ${params.repo}`
+				: result.verified
+					? `Repository security configured for ${params.repo}`
+					: `Repository security configuration could not be fully verified for ${params.repo}.${formatRecovery("recovery" in result ? result.recovery : undefined)}`;
 			return {
-				content: [{ type: "text", text: result.dryRun ? `Dry run: would configure security for ${params.repo}` : `Repository security configured for ${params.repo}` }],
+				content: [{ type: "text", text }],
 				details: result,
 			};
 		},
@@ -35,9 +40,19 @@ export function registerSecurityTools(pi: ExtensionAPI): void {
 		async execute(_id, params) {
 			const result = await verifyRepositorySecurity(params);
 			return {
-				content: [{ type: "text", text: result.ok ? `Repository security verified for ${params.repo}` : `Repository security gaps found for ${params.repo}` }],
+				content: [{
+					type: "text",
+					text: result.ok
+						? `Repository security verified for ${params.repo}`
+						: `Repository security gaps found for ${params.repo}.${formatRecovery(result.recovery)}`,
+				}],
 				details: result,
 			};
 		},
 	});
+}
+
+function formatRecovery(recovery: readonly string[] | undefined): string {
+	if (!recovery?.length) return " Recovery: review the per-control result before changing repository settings.";
+	return ` Recovery: ${recovery.join(" ")}`;
 }

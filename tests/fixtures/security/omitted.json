@@ -1,0 +1,9 @@
+{
+  "name": "omitted",
+  "repository": {
+    "status": 200,
+    "body": { "security_and_analysis": {} }
+  },
+  "privateVulnerabilityReporting": { "status": 200, "body": { "enabled": true } },
+  "dependabotSecurityUpdates": { "status": 200, "body": { "enabled": true } }
+}

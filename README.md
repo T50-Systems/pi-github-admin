@@ -128,6 +128,9 @@ This package now covers the smallest high-value GitHub admin workflow end to end
   retain their requested limit and return `truncated` when more results exist
 - internal GitHub requests use a 10-second default timeout, retry bounded read-only
   transient failures, and surface sanitized structured recovery metadata
+- security verification keeps legacy `state` booleans and `ok` while adding per-control
+  capability, enabled-state, sanitized reason/status, and bounded recovery results; masked
+  404 responses remain `unknown` rather than being treated as proof of unsupported state
 
 ## PR discipline workflow
 
@@ -246,6 +249,7 @@ github_delete_comment({
 - [Examples and integration recipes](docs/INTEGRATIONS.md)
 - [Performance baseline](docs/PERFORMANCE.md)
 - [Offline GitHub Actions validation and pin review](docs/WORKFLOW_VALIDATION.md)
+- [Security-control capability taxonomy and legacy compatibility](docs/SECURITY_CAPABILITY_RESULTS.md)
 - [Release and changelog workflow](docs/RELEASING.md)
 - [Roadmap](docs/ROADMAP.md) and [backlog governance](docs/BACKLOG.md)
 
