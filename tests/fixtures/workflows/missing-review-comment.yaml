@@ -1,0 +1,7 @@
+name: Missing review comment workflow fixture
+on: push
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd

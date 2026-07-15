@@ -33,9 +33,12 @@ committed lockfile is honored exactly.
 3. Put shared input types in `src/types.ts`, GitHub behavior in `src/api.ts`,
    and Pi tool registration/schema code in `src/tools.ts`.
 4. Add or update tests under `tests/`.
-5. Run the same checks as CI before committing:
+5. Run the same checks as CI before committing. Workflow validation is offline
+   after `npm ci`; provenance and pin review are documented in
+   [`docs/WORKFLOW_VALIDATION.md`](docs/WORKFLOW_VALIDATION.md):
 
    ```bash
+   npm run verify:workflows
    npm run verify
    npm audit --audit-level=high
    npm pack --dry-run
@@ -80,7 +83,7 @@ do not paste `gh auth token` output into an issue or pull request.
 - [ ] The change is linked to an existing issue when one applies.
 - [ ] Mutating behavior supports and tests `dryRun`.
 - [ ] No credentials or sensitive response data are logged or committed.
-- [ ] `npm run verify` passes, including coverage and release metadata checks.
+- [ ] `npm run verify` passes, beginning with offline workflow validation and then coverage and release metadata checks.
 - [ ] `npm audit --audit-level=high` passes.
 - [ ] `npm pack --dry-run` contains only intended publish files.
 - [ ] Performance-sensitive changes include benchmark evidence.

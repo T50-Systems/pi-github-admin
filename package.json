@@ -22,7 +22,8 @@
     "test:coverage": "vitest run --coverage",
     "benchmark": "vitest bench --run",
     "verify:release": "node scripts/verify-release.mjs",
-    "verify": "npm run typecheck && npm run test:coverage && npm run verify:release"
+    "verify:workflows": "node scripts/verify-workflows.mjs",
+    "verify": "npm run verify:workflows && npm run typecheck && npm run test:coverage && npm run verify:release"
   },
   "files": [
     "extensions",
@@ -42,9 +43,11 @@
     "@earendil-works/pi-coding-agent": "^0.80.2",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.1.8",
+    "actionlint": "2.0.6",
     "typebox": "^1.1.38",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "yaml": "2.9.0"
   },
   "engines": {
     "node": ">=22.0.0"
