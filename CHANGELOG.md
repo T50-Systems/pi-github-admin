@@ -17,6 +17,9 @@
   publishing to npm.
 - Lockfile-pinned offline GitHub Actions schema/semantic validation, immutable action
   policy, negative fixtures, and validator provenance/update guidance.
+- Additive per-control security capability/enabled results with sanitized recovery,
+  deterministic enabled/disabled/omitted/403/404/partial fixtures, and preserved legacy
+  `state` booleans/`ok` semantics.
 
 ### Changed
 
@@ -29,6 +32,8 @@
 - All mutating dry runs now avoid both credential resolution and HTTP, including PR
   linking/merge and branch deletion plans.
 - Coverage gates now require at least 80% lines and 70% branches.
+- The workflow validator stays directly executable with Node while remaining importable
+  by the Windows Vitest suite.
 
 ## 0.6.0 - 2026-07-01
 

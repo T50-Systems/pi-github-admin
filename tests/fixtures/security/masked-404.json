@@ -1,0 +1,6 @@
+{
+  "name": "masked-404",
+  "repository": { "status": 404, "message": "repository diagnostic detail" },
+  "privateVulnerabilityReporting": { "status": 404, "message": "private-reporting diagnostic detail" },
+  "dependabotSecurityUpdates": { "status": 404, "message": "automated-fixes diagnostic detail" }
+}

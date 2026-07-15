@@ -74,6 +74,9 @@ When adding or changing a tool:
   is a manual integration check and must use a disposable repository.
 - Register new tools through `src/tools.ts` and confirm public exports through
   `src/index.ts` when programmatic access is intended.
+- Treat security capability diagnostics as an additive contract: retain legacy booleans
+  and `ok`, emit only sanitized closed reasons/status, and keep masked 404 capability
+  unknown as recorded in [`SECURITY_CAPABILITY_RESULTS.md`](SECURITY_CAPABILITY_RESULTS.md).
 
 ## Validation boundary
 
