@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createGitHubClient,
 	GitHubApiError,
+	MAX_COLLECTION_ITEMS,
+	MAX_COLLECTION_PAGES,
 	paginate,
 	paginateMapped,
 	parseNextLink,
@@ -113,6 +115,21 @@ describe("pagination", () => {
 		const link = '<https://api.github.com/items?page=2>; rel="next"';
 		await expect(paginate<number>(clientFor([{ data: [1], link }]), "/items", { maxPages: 1 })).resolves.toMatchObject({ reason: "max_pages", truncated: true });
 		await expect(paginate<number>(clientFor([{ data: [1, 2], link }]), "/items", { maxItems: 1 })).resolves.toMatchObject({ items: [1], reason: "max_items", truncated: true });
+	});
+
+	it("clamps caller overrides to the exported hard collection guards", async () => {
+		const pages = Array.from({ length: MAX_COLLECTION_PAGES }, (_, index) => ({
+			data: Array.from({ length: MAX_COLLECTION_ITEMS / MAX_COLLECTION_PAGES }, () => index),
+			link: index + 1 < MAX_COLLECTION_PAGES
+				? `<https://api.github.com/items?page=${index + 2}>; rel="next"`
+				: undefined,
+		}));
+		const result = await paginate<number>(clientFor(pages), "/items", {
+			maxItems: Number.MAX_SAFE_INTEGER,
+			maxPages: Number.MAX_SAFE_INTEGER,
+		});
+		expect(result.items).toHaveLength(MAX_COLLECTION_ITEMS);
+		expect(result).toMatchObject({ pages: MAX_COLLECTION_PAGES, truncated: false });
 	});
 
 	it("maps wrapped collection pages", async () => {

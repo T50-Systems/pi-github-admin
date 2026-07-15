@@ -1,6 +1,7 @@
 node_modules/
 coverage/
 .vitest/
+artifacts/
 *.log
 .DS_Store
 Thumbs.db

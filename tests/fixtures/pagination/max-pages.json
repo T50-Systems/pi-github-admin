@@ -1,0 +1,9 @@
+{
+  "name": "max-pages",
+  "startPath": "/items?page=1",
+  "pages": [
+    { "path": "/items?page=1", "items": [1], "next": "/items?page=2" }
+  ],
+  "options": { "maxPages": 1 },
+  "expected": { "items": [1], "pages": 1, "truncated": true, "reason": "max_pages" }
+}

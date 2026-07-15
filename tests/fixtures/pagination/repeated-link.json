@@ -1,0 +1,9 @@
+{
+  "name": "repeated-link",
+  "startPath": "/items?page=1",
+  "pages": [
+    { "path": "/items?page=1", "items": [1], "next": "/items?page=1" }
+  ],
+  "options": {},
+  "expected": { "items": [1], "pages": 1, "truncated": true, "reason": "repeated_link" }
+}

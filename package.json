@@ -20,7 +20,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "benchmark": "vitest bench --run",
+    "benchmark:core": "vitest bench --run",
+    "benchmark:pagination": "vitest run --config benchmarks/vitest.measurement.config.ts",
+    "benchmark": "npm run benchmark:core && npm run benchmark:pagination",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:workflows": "node scripts/verify-workflows.mjs",
     "verify": "npm run verify:workflows && npm run typecheck && npm run test:coverage && npm run verify:release"

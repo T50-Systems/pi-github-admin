@@ -128,6 +128,9 @@ This package now covers the smallest high-value GitHub admin workflow end to end
   retain their requested limit and return `truncated` when more results exist
 - internal GitHub requests use a 10-second default timeout, retry bounded read-only
   transient failures, and surface sanitized structured recovery metadata
+- pagination hard guard maximums are exported as `MAX_COLLECTION_PAGES` and
+  `MAX_COLLECTION_ITEMS`; the deterministic offline benchmark records hosted baseline
+  evidence without enforcing a budget until stable shared-runner samples exist
 - security verification keeps legacy `state` booleans and `ok` while adding per-control
   capability, enabled-state, sanitized reason/status, and bounded recovery results; masked
   404 responses remain `unknown` rather than being treated as proof of unsupported state

@@ -4,6 +4,8 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 export const DEFAULT_MAX_RETRIES = 2;
 export const DEFAULT_MAX_PAGES = 20;
 export const DEFAULT_MAX_ITEMS = 2_000;
+export const MAX_COLLECTION_PAGES = 100;
+export const MAX_COLLECTION_ITEMS = 10_000;
 export const MAX_ERROR_BODY_LENGTH = 512;
 
 export interface GitHubRequestOptions {
@@ -176,8 +178,8 @@ export async function paginateMapped<TPage, TItem>(
 	mapPage: (page: TPage) => TItem[],
 	options: PaginationOptions = {},
 ): Promise<PaginatedResult<TItem>> {
-	const maxPages = boundedInteger(options.maxPages, DEFAULT_MAX_PAGES, 1, 100);
-	const maxItems = boundedInteger(options.maxItems, DEFAULT_MAX_ITEMS, 1, 10_000);
+	const maxPages = boundedInteger(options.maxPages, DEFAULT_MAX_PAGES, 1, MAX_COLLECTION_PAGES);
+	const maxItems = boundedInteger(options.maxItems, DEFAULT_MAX_ITEMS, 1, MAX_COLLECTION_ITEMS);
 	const items: TItem[] = [];
 	const seen = new Set<string>();
 	let next: string | undefined = path;
