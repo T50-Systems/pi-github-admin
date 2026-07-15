@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "guarded-pagination-maximum-collection",
+  "limits": {
+    "p99LatencyMs": 12,
+    "peakRssBytes": 134217728,
+    "peakHeapUsedBytes": 33554432
+  }
+}

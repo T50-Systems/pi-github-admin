@@ -22,7 +22,8 @@
     "test:coverage": "vitest run --coverage",
     "benchmark:core": "vitest bench --run",
     "benchmark:pagination": "vitest run --config benchmarks/vitest.measurement.config.ts",
-    "benchmark": "npm run benchmark:core && npm run benchmark:pagination",
+    "benchmark:pagination:enforce": "node scripts/enforce-pagination-budget.mjs",
+    "benchmark": "npm run benchmark:core && npm run benchmark:pagination && npm run benchmark:pagination:enforce",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:workflows": "node scripts/verify-workflows.mjs",
     "verify": "npm run verify:workflows && npm run typecheck && npm run test:coverage && npm run verify:release"

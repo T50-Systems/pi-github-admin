@@ -41,9 +41,8 @@ jobs:
       - name: Inspect publish contents
         run: npm pack --dry-run
 
-  pagination-baseline:
-    name: Pagination baseline (nonblocking)
-    continue-on-error: true
+  pagination-budget:
+    name: Pagination regression budget
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -59,14 +58,17 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Measure guarded pagination baseline
+      - name: Measure guarded pagination
         run: npm run benchmark:pagination
 
-      - name: Upload machine-readable baseline
+      - name: Enforce pagination regression budget
+        run: npm run benchmark:pagination:enforce
+
+      - name: Upload machine-readable evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pagination-benchmark-results
-          path: artifacts/pagination-benchmark.json
+          path: artifacts/pagination-*.json
           if-no-files-found: error
           retention-days: 30

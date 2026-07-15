@@ -23,6 +23,9 @@
 - Exported pagination hard-guard maximums, deterministic 100-page/10,000-item
   measurement with guard fixtures and machine-readable latency/memory evidence, and a
   nonblocking hosted baseline artifact job.
+- Required pagination regression enforcement for p99 latency, peak RSS, and peak heap,
+  derived from three merged-workflow hosted baselines with documented headroom and
+  deterministic policy tests.
 
 ### Changed
 

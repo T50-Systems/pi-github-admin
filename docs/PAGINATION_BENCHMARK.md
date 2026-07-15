@@ -12,8 +12,8 @@ npm run benchmark:pagination
 
 The command performs three warmup runs and 25 measured runs. It writes machine-readable JSON to `artifacts/pagination-benchmark.json` (override with `PAGINATION_BENCHMARK_OUTPUT`) and reports p50, p95, and p99 latency plus the peak observed RSS and heap usage. Guard fixtures cover maximum-item truncation, maximum-page truncation, repeated links, and an exact-boundary non-truncated result.
 
-## Measurement versus decision
+## Measurement and decision
 
-This change establishes evidence collection only. The hosted `pagination-baseline` job is deliberately nonblocking and uploads `pagination-benchmark-results` for comparison across GitHub-hosted runs. It does not encode a latency or memory budget.
+The measurement remains independent from policy: it records raw values and fixture results without embedding thresholds. `npm run benchmark:pagination:enforce` deterministically validates that JSON against `scripts/pagination-budget.json` and writes `artifacts/pagination-budget-result.json`. `npm run benchmark` runs both measurement and enforcement.
 
-After enough comparable hosted samples exist, maintainers should review run-to-run variance and open a separate budget PR if stable bounds can be justified. That decision PR should document the selected statistic, tolerated variance, runner assumptions, and failure/rebaseline process before turning a threshold into a required CI gate. A single local or hosted sample is not sufficient evidence for a hard budget.
+The required hosted `pagination-budget` job uploads both JSON files as `pagination-benchmark-results`, even when enforcement fails. Threshold selection, hosted evidence, headroom, failure handling, and rebaseline rules are recorded in [`PAGINATION_BUDGET_DECISION.md`](PAGINATION_BUDGET_DECISION.md).
