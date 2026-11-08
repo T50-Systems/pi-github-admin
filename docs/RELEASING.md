@@ -10,10 +10,10 @@ The project follows semantic versioning and records user-visible changes in `CHA
 4. Run:
 
    ```bash
-   npm ci
-   npm run verify
-   npm run benchmark
-   npm audit --audit-level=high
+   pnpm install --frozen-lockfile
+   pnpm run verify
+   pnpm run benchmark
+   pnpm audit --audit-level=high
    npm pack --dry-run
    node scripts/extract-release-notes.mjs vX.Y.Z
    ```
@@ -44,7 +44,7 @@ The workflow has no npm token and no `npm publish` command. npm publication, if 
 ## Manual verification
 
 ```bash
-EXPECTED_RELEASE_TAG=vX.Y.Z VERIFY_RELEASE_TAG=1 npm run verify:release
+EXPECTED_RELEASE_TAG=vX.Y.Z VERIFY_RELEASE_TAG=1 pnpm run verify:release
 node scripts/extract-release-notes.mjs vX.Y.Z release-notes.md
 npm pack --json
 ```

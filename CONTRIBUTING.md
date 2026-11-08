@@ -15,12 +15,12 @@ mutate live repositories.
 ```bash
 git clone https://github.com/T50-Systems/pi-github-admin.git
 cd pi-github-admin
-npm ci
-npm run typecheck
-npm test
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm test
 ```
 
-Use `npm ci`, rather than `npm install`, when verifying a clean checkout so the
+Use `pnpm install --frozen-lockfile`, rather than `pnpm install --frozen-lockfile`, when verifying a clean checkout so the
 committed lockfile is honored exactly.
 
 ## Development workflow
@@ -34,17 +34,17 @@ committed lockfile is honored exactly.
    and Pi tool registration/schema code in `src/tools.ts`.
 4. Add or update tests under `tests/`.
 5. Run the same checks as CI before committing. Workflow validation is offline
-   after `npm ci`; provenance and pin review are documented in
+   after `pnpm install --frozen-lockfile`; provenance and pin review are documented in
    [`docs/WORKFLOW_VALIDATION.md`](docs/WORKFLOW_VALIDATION.md):
 
    ```bash
-   npm run verify:workflows
-   npm run verify
-   npm audit --audit-level=high
+   pnpm run verify:workflows
+   pnpm run verify
+   pnpm audit --audit-level=high
    npm pack --dry-run
    ```
 
-6. Run `npm run benchmark` for changes to parsing, matching, response shaping, or
+6. Run `pnpm run benchmark` for changes to parsing, matching, response shaping, or
    composite planning and report any material median change.
 7. Follow [`docs/RELEASING.md`](docs/RELEASING.md) for version, changelog, tag,
    and upgrade requirements.
@@ -83,8 +83,8 @@ do not paste `gh auth token` output into an issue or pull request.
 - [ ] The change is linked to an existing issue when one applies.
 - [ ] Mutating behavior supports and tests `dryRun`.
 - [ ] No credentials or sensitive response data are logged or committed.
-- [ ] `npm run verify` passes, beginning with offline workflow validation and then coverage and release metadata checks.
-- [ ] `npm audit --audit-level=high` passes.
+- [ ] `pnpm run verify` passes, beginning with offline workflow validation and then coverage and release metadata checks.
+- [ ] `pnpm audit --audit-level=high` passes.
 - [ ] `npm pack --dry-run` contains only intended publish files.
 - [ ] Performance-sensitive changes include benchmark evidence.
 - [ ] Documentation and examples match the implemented behavior.

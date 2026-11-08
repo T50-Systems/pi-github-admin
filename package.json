@@ -23,10 +23,10 @@
     "benchmark:core": "vitest bench --run",
     "benchmark:pagination": "vitest run --config benchmarks/vitest.measurement.config.ts",
     "benchmark:pagination:enforce": "node scripts/enforce-pagination-budget.mjs",
-    "benchmark": "npm run benchmark:core && npm run benchmark:pagination && npm run benchmark:pagination:enforce",
+    "benchmark": "pnpm run benchmark:core && pnpm run benchmark:pagination && pnpm run benchmark:pagination:enforce",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:workflows": "node scripts/verify-workflows.mjs",
-    "verify": "npm run verify:workflows && npm run typecheck && npm run test:coverage && npm run verify:release"
+    "verify": "pnpm run verify:workflows && pnpm run typecheck && pnpm run test:coverage && pnpm run verify:release"
   },
   "files": [
     "extensions",
@@ -54,5 +54,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.9"
 }
