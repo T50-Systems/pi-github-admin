@@ -39,8 +39,8 @@ least-privileged GitHub token.
 ```bash
 git clone https://github.com/T50-Systems/pi-github-admin.git
 cd pi-github-admin
-npm ci
-npm run verify
+pnpm install --frozen-lockfile
+pnpm run verify
 pi install "$(pwd)"
 ```
 
@@ -259,14 +259,14 @@ github_delete_comment({
 ## Development
 
 ```bash
-npm ci
-npm run verify
-npm run benchmark
-npm audit --audit-level=high
+pnpm install --frozen-lockfile
+pnpm run verify
+pnpm run benchmark
+pnpm audit --audit-level=high
 npm pack --dry-run
 ```
 
-`npm run verify` starts with the same offline workflow schema/semantic validation
-available as `npm run verify:workflows`, then runs type checking, tests with coverage
+`pnpm run verify` starts with the same offline workflow schema/semantic validation
+available as `pnpm run verify:workflows`, then runs type checking, tests with coverage
 thresholds, and release metadata validation. See [CONTRIBUTING.md](CONTRIBUTING.md)
 before changing the tool surface.

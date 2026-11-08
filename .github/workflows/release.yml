@@ -22,26 +22,31 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 10.34.9
+          run_install: false
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Install exact dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Verify version, lockfile, tag, changelog, types, tests, and coverage
         env:
           EXPECTED_RELEASE_TAG: ${{ github.ref_name }}
           VERIFY_RELEASE_TAG: "1"
-        run: npm run verify
+        run: pnpm run verify
 
       - name: Audit production dependency tree
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
 
       - name: Enforce benchmark policy
-        run: npm run benchmark
+        run: pnpm run benchmark
 
       - name: Build and inspect package tarball
         id: pack

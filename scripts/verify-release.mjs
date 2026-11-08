@@ -1,21 +1,26 @@
 import { readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { parse } from "yaml";
 
 const root = new URL("../", import.meta.url);
 const [packageText, lockText, changelog] = await Promise.all([
   readFile(new URL("package.json", root), "utf8"),
-  readFile(new URL("package-lock.json", root), "utf8"),
+  readFile(new URL("pnpm-lock.yaml", root), "utf8"),
   readFile(new URL("CHANGELOG.md", root), "utf8"),
 ]);
 const pkg = JSON.parse(packageText);
-const lock = JSON.parse(lockText);
+const lock = parse(lockText);
 const errors = [];
 
-if (lock.version !== pkg.version) {
-  errors.push(`package-lock.json version ${lock.version} does not match package.json ${pkg.version}`);
+if (Number(lock.lockfileVersion) !== 9 || !lock.importers?.["."]) {
+  errors.push("pnpm-lock.yaml must use the supported format and contain the root importer");
 }
-if (lock.packages?.[""]?.version !== pkg.version) {
-  errors.push(`lockfile root version ${lock.packages?.[""]?.version ?? "missing"} does not match ${pkg.version}`);
+for (const section of ["dependencies", "devDependencies", "optionalDependencies"]) {
+  for (const [name, specifier] of Object.entries(pkg[section] ?? {})) {
+    if (lock.importers?.["."]?.[section]?.[name]?.specifier !== specifier) {
+      errors.push(`pnpm-lock.yaml must preserve the declared ${name} specification`);
+    }
+  }
 }
 
 const escapedVersion = pkg.version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
